@@ -1,0 +1,4 @@
+singleplayer: 1 rakett mot en monster blob som blir større over i tid. Du må drepe den før den blir for stor.
+one rocket against a "monster blob" which increaes in size in time. It has to be killed before it becomes too big.
+
+multiplayer: two rockets shoot and fight against each others. Eventually, several items can be used.
