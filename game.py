@@ -2,7 +2,6 @@ import pygame
 from pygame.locals import *
 
 pygame.font.init() # initialize font module for font and text
-
 pygame.mixer.init() # initialize mixer module for sounds
 
 WINDOW_X = 600
@@ -11,7 +10,8 @@ WINDOW_Y = 400
 WINDOW = pygame.display.set_mode((WINDOW_X, WINDOW_Y))
 pygame.display.set_caption("Game")
 
-GAME_FONT = pygame.font.SysFont('consolas', 20) # defining font to use in game
+GUI_FONT = pygame.font.SysFont('consolas', 20) # defining font to use in game score and health
+GAME_OVER_FONT = pygame.font.SysFont('consolas', 30) # for game over font
 
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
@@ -36,35 +36,35 @@ PLAYER_WAS_HIT_EVENT = pygame.USEREVENT + 1 # create a new event for when player
 PLAYER_BULLET_HIT_EVENT = pygame.USEREVENT + 2 # create new element for when a bullet hits an enemy
 
 
-PLAYER_IMAGE = pygame.image.load("rocket_class_1.png") # load image
+PLAYER_IMAGE = pygame.image.load("assets/images/rocket_class_1.png") # load image
 
 PLAYER_IMAGE = pygame.transform.scale(PLAYER_IMAGE, (20, 28)) # resize image
 
 PLAYER_IMAGE = pygame.transform.rotate(PLAYER_IMAGE, 180)
 
-PLAYER_IMAGE.set_colorkey(WHITE) # make white pixel transparent
+PLAYER_IMAGE.set_colorkey(WHITE) # make white pixels transparent
 
 PLAYER_WIDTH = PLAYER_IMAGE.get_width()
 
 PLAYER_HEIGHT = PLAYER_IMAGE.get_height()
 
 
-SHOOT_SOUND = pygame.mixer.Sound("shooting_sfx.wav")
+SHOOT_SOUND = pygame.mixer.Sound("assets/sounds/shooting_sfx.wav")
 
-NEW_LIFE = pygame.mixer.Sound("1up_sfx.wav")
+NEW_LIFE = pygame.mixer.Sound("assets/sounds/1up_sfx.wav")
 
-ROCKET_EXPLOSION_SOUND = pygame.mixer.Sound("player_lost.wav")
+ROCKET_EXPLOSION_SOUND = pygame.mixer.Sound("assets/sounds/player_lost.wav")
 
 
-background_image = pygame.image.load("background.png")
+background_image = pygame.image.load("assets/images/background.png")
 
 background_surface = pygame.Surface((WINDOW_X, WINDOW_Y)) # size of surface is equal to size of window
 
 def draw_window(player_box, keys_pressed, active_bullets, enemy_box, enemy_minion, moving_enemy, PLAYER_HEALTH, PLAYER_SCORE, active_enemy_bullets, PLAYER_LOST): # all drawing happens inside this
     background_surface.fill(WHITE) # adds white to the display
 
-    health_text = GAME_FONT.render("Health: " + str(PLAYER_HEALTH), 1, WHITE)
-    score_text = GAME_FONT.render("Score: " + str(PLAYER_SCORE), 1, YELLOW)
+    health_text = GUI_FONT.render("Health: " + str(PLAYER_HEALTH), 1, WHITE)
+    score_text = GUI_FONT.render("Score: " + str(PLAYER_SCORE), 1, YELLOW)
 
     WINDOW.blit(background_surface, (0, 0))
     WINDOW.blit(background_image, (0, 0))
@@ -102,13 +102,14 @@ def handle_bullets(active_bullets, player_box, enemy_box, enemy_minion, moving_e
             print("you got hit")
 
 def draw_results(total_score):
-    game_over_text = GAME_FONT.render("You have lost! Total score: " + str(total_score), 1, RED)
-    WINDOW.blit(game_over_text, (40, 60))
-    ROCKET_EXPLOSION_SOUND.play() 
+    game_over_text = GAME_OVER_FONT.render("You have lost! Total score: " + str(total_score), 1, RED)
+    WINDOW.blit(game_over_text, (WINDOW_X / 2 - game_over_text.get_width() / 2, WINDOW_Y / 2 - game_over_text.get_height() ) )
+    print(game_over_text.get_width())
+    ROCKET_EXPLOSION_SOUND.play()
 
     pygame.display.update()
 
-    pygame.time.delay(5000) # give it 5 seconds before restarting game...
+    pygame.time.delay(4000) # give it 4 seconds (4000 milliseconds) before restarting game...
 
     print("game is restarting...")
     main_loop() # restart main loop (game setting)
@@ -128,7 +129,7 @@ def main_loop():
 
     player_box = pygame.Rect(100, 300, PLAYER_WIDTH, PLAYER_HEIGHT) # initialize rectangle (define dimensions)
 
-    enemy_box = pygame.Rect(0, 0, WINDOW_X, 20) # enemy rectangle box
+    enemy_box = pygame.Rect(50, 0, WINDOW_X - 100, 40) # enemy rectangle box
 
     enemy_minion = pygame.Rect(25, 25, 50, 50) # mini enemies rectangle box
 
@@ -162,6 +163,7 @@ def main_loop():
 
             if event.type == PLAYER_BULLET_HIT_EVENT:
                 if PLAYER_SCORE >= 69:
+                    PLAYER_SCORE = 0
                     PLAYER_HEALTH += 1
                     NEW_LIFE.play()
                     print("New life!")
@@ -182,6 +184,8 @@ def main_loop():
             moving_enemy.y -= 3
         if keys_pressed[pygame.K_s]:
             moving_enemy.y += 3
+        if keys_pressed[pygame.K_a]:
+            pass # activate animation
 
         if keys_pressed[pygame.K_RIGHT] and player_box.x + player_box.width < WINDOW_X:
             player_box.x += VEL
