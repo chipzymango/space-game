@@ -4,8 +4,8 @@ from pygame.locals import *
 pygame.font.init() # initialize font module for font and text
 pygame.mixer.init() # initialize mixer module for sounds
 
-WINDOW_X = 600
-WINDOW_Y = 400
+WINDOW_X = 1200
+WINDOW_Y = 600
 
 WINDOW = pygame.display.set_mode((WINDOW_X, WINDOW_Y))
 pygame.display.set_caption("Game")
@@ -36,9 +36,9 @@ PLAYER_WAS_HIT_EVENT = pygame.USEREVENT + 1 # create a new event for when player
 PLAYER_BULLET_HIT_EVENT = pygame.USEREVENT + 2 # create new element for when a bullet hits an enemy
 
 
-PLAYER_IMAGE = pygame.image.load("assets/images/rocket_class_1.png") # load image
+PLAYER_IMAGE = pygame.image.load("assets/images/rocket_class_2.png") # load image
 
-PLAYER_IMAGE = pygame.transform.scale(PLAYER_IMAGE, (20, 28)) # resize image
+PLAYER_IMAGE = pygame.transform.scale(PLAYER_IMAGE, (28, 28)) # resize image
 
 PLAYER_IMAGE = pygame.transform.rotate(PLAYER_IMAGE, 180)
 
@@ -56,11 +56,25 @@ NEW_LIFE = pygame.mixer.Sound("assets/sounds/1up_sfx.wav")
 ROCKET_EXPLOSION_SOUND = pygame.mixer.Sound("assets/sounds/player_lost.wav")
 
 
-background_image = pygame.image.load("assets/images/background.png")
+background_image = pygame.image.load("assets/images/space_bg.jpg")
+
+background_image = pygame.transform.scale(background_image, (1200, 800))
 
 background_surface = pygame.Surface((WINDOW_X, WINDOW_Y)) # size of surface is equal to size of window
 
-def draw_window(player_box, keys_pressed, active_bullets, enemy_box, enemy_minion, moving_enemy, PLAYER_HEALTH, PLAYER_SCORE, active_enemy_bullets, PLAYER_LOST): # all drawing happens inside this
+def draw_window(
+    player_box, 
+    keys_pressed, 
+    active_bullets, 
+    enemy_box, 
+    ENEMY_MINION, 
+    MOVING_ENEMY, 
+    PLAYER_HEALTH, 
+    PLAYER_SCORE, 
+    active_enemy_bullets, 
+    PLAYER_LOST, 
+    MOUSE_BOX): # all drawing happens inside this
+
     background_surface.fill(WHITE) # adds white to the display
 
     health_text = GUI_FONT.render("Health: " + str(PLAYER_HEALTH), 1, WHITE)
@@ -73,7 +87,8 @@ def draw_window(player_box, keys_pressed, active_bullets, enemy_box, enemy_minio
     WINDOW.blit(score_text, (25, WINDOW_Y - 20))
 
     pygame.draw.rect(WINDOW, DARK_RED, enemy_box)
-    pygame.draw.rect(WINDOW, YELLOW, moving_enemy)
+    pygame.draw.rect(WINDOW, YELLOW, MOVING_ENEMY)
+    pygame.draw.rect(WINDOW, ORANGE, MOUSE_BOX)
 
     if PLAYER_LOST:
         draw_results(PLAYER_SCORE)
@@ -86,12 +101,13 @@ def draw_window(player_box, keys_pressed, active_bullets, enemy_box, enemy_minio
 
     pygame.display.update()
 
-def handle_bullets(active_bullets, player_box, enemy_box, enemy_minion, moving_enemy, active_enemy_bullets): # handle collision of bullets aswell as movement
+def handle_bullets(active_bullets, player_box, enemy_box, ENEMY_MINION, MOVING_ENEMY, active_enemy_bullets): # handle collision of bullets aswell as movement
     for bullet in active_bullets:
         bullet.y -= BULLET_VEL
-        if enemy_box.colliderect(bullet) or enemy_minion.colliderect(bullet):
+        if enemy_box.colliderect(bullet) or ENEMY_MINION.colliderect(bullet):
             pygame.event.post(pygame.event.Event(PLAYER_BULLET_HIT_EVENT))
             active_bullets.remove(bullet)
+
             print("bullet has collided!")
     
     for evil_bullet in active_enemy_bullets:
@@ -106,10 +122,18 @@ def draw_results(total_score):
     WINDOW.blit(game_over_text, (WINDOW_X / 2 - game_over_text.get_width() / 2, WINDOW_Y / 2 - game_over_text.get_height() ) )
     print(game_over_text.get_width())
     ROCKET_EXPLOSION_SOUND.play()
+    length_of_audio = pygame.mixer.Sound("assets/sounds/player_lost.wav").get_length()
+    length_of_audio *= 1000
+    length_of_audio = int(length_of_audio)
+    print(length_of_audio)
+
+    pause_time = length_of_audio
+    if length_of_audio < 4000: # check if the length of audio is less than 4 seconds
+        pause_time = 4000 # then make the pause 4 seconds long (to prevent immediate restart)
 
     pygame.display.update()
 
-    pygame.time.delay(4000) # give it 4 seconds (4000 milliseconds) before restarting game...
+    pygame.time.delay(pause_time)
 
     print("game is restarting...")
     main_loop() # restart main loop (game setting)
@@ -127,13 +151,15 @@ def main_loop():
 
     PLAYER_LOST = False
 
+    MOUSE_BOX = pygame.Rect(250, 250, 40, 40)
+
     player_box = pygame.Rect(100, 300, PLAYER_WIDTH, PLAYER_HEIGHT) # initialize rectangle (define dimensions)
 
     enemy_box = pygame.Rect(50, 0, WINDOW_X - 100, 40) # enemy rectangle box
 
-    enemy_minion = pygame.Rect(25, 25, 50, 50) # mini enemies rectangle box
+    ENEMY_MINION = pygame.Rect(25, 25, 50, 50) # mini enemies rectangle box
 
-    moving_enemy = pygame.Rect(500, 60, 40, 40) # flying mini enemies. Starts at position: (x, y) = (500, 600)
+    MOVING_ENEMY = pygame.Rect(500, 60, 40, 40) # flying mini enemies. Starts at position: (x, y) = (500, 600)
 
     clock = pygame.time.Clock()
 
@@ -155,7 +181,7 @@ def main_loop():
 
                 if event.key == pygame.K_BACKSPACE:
                     SHOOT_SOUND.play()
-                    bullet_box = pygame.Rect(moving_enemy.x + moving_enemy.width / 2 - 2, moving_enemy.y, 4, 4) # create new bullet Rect
+                    bullet_box = pygame.Rect(MOVING_ENEMY.x + MOVING_ENEMY.width / 2 - 2, MOVING_ENEMY.y, 4, 4) # create new bullet Rect
                     active_enemy_bullets.append(bullet_box) # append bullet Rect to active bullets list
 
             if event.type == PLAYER_WAS_HIT_EVENT:
@@ -173,35 +199,49 @@ def main_loop():
         if PLAYER_HEALTH <= 0:
             PLAYER_LOST = True
 
-       # print(active_bullets)
-       # print(active_enemy_bullets)
-
         keys_pressed = pygame.key.get_pressed()
         # this variable is assigned to whatever
         # key is being pressed at the current frame
 
         if keys_pressed[pygame.K_w]:
-            moving_enemy.y -= 3
+            MOVING_ENEMY.y -= 3
         if keys_pressed[pygame.K_s]:
-            moving_enemy.y += 3
+            MOVING_ENEMY.y += 3
         if keys_pressed[pygame.K_a]:
-            pass # activate animation
+            MOVING_ENEMY.x -= 3
+        if keys_pressed[pygame.K_d]:
+            MOVING_ENEMY.x += 3
 
         if keys_pressed[pygame.K_RIGHT] and player_box.x + player_box.width < WINDOW_X:
             player_box.x += VEL
-        
         if keys_pressed[pygame.K_LEFT] and player_box.x > 0:
             player_box.x -= VEL
-        
         if keys_pressed[pygame.K_DOWN] and player_box.y + player_box.height < WINDOW_Y:
             player_box.y += VEL
-
         if keys_pressed[pygame.K_UP] and player_box.y > 0:
             player_box.y -= VEL
 
-        handle_bullets(active_bullets, player_box, enemy_box, enemy_minion, moving_enemy, active_enemy_bullets)
+        mouse_cursor_x = pygame.mouse.get_pos()[0]
+        mouse_cursor_y = pygame.mouse.get_pos()[1]
+        
+        MOUSE_BOX.x = mouse_cursor_x
+        MOUSE_BOX.y = mouse_cursor_y
 
-        draw_window(player_box, keys_pressed, active_bullets, enemy_box, enemy_minion, moving_enemy, PLAYER_HEALTH, PLAYER_SCORE, active_enemy_bullets, PLAYER_LOST)
+        handle_bullets(active_bullets, player_box, enemy_box, ENEMY_MINION, MOVING_ENEMY, active_enemy_bullets)
+
+        draw_window(
+            player_box, 
+            keys_pressed, 
+            active_bullets, 
+            enemy_box, 
+            ENEMY_MINION, 
+            MOVING_ENEMY, 
+            PLAYER_HEALTH, 
+            PLAYER_SCORE, 
+            active_enemy_bullets, 
+            PLAYER_LOST,
+            MOUSE_BOX
+            )
 
     pygame.quit()
 
