@@ -1,8 +1,7 @@
 import pygame
 from pygame.locals import *
 
-pygame.font.init() # initialize font module for font and text
-pygame.mixer.init() # initialize mixer module for sounds
+pygame.init() # initalize pygame stuff + background timer starts
 
 WINDOW_X = 1200
 WINDOW_Y = 600
@@ -28,6 +27,8 @@ VEL = 4
 
 BULLET_VEL = 7
 
+BIG_BULLET_VEL = 4
+
 BULLETS_LIMIT = 3
 
 
@@ -48,13 +49,11 @@ PLAYER_WIDTH = PLAYER_IMAGE.get_width()
 
 PLAYER_HEIGHT = PLAYER_IMAGE.get_height()
 
-
 SHOOT_SOUND = pygame.mixer.Sound("assets/sounds/shooting_sfx.wav")
 
 NEW_LIFE = pygame.mixer.Sound("assets/sounds/1up_sfx.wav")
 
 ROCKET_EXPLOSION_SOUND = pygame.mixer.Sound("assets/sounds/player_lost.wav")
-
 
 background_image = pygame.image.load("assets/images/space_bg.jpg")
 
@@ -73,7 +72,8 @@ def draw_window(
     PLAYER_SCORE, 
     active_enemy_bullets, 
     PLAYER_LOST, 
-    MOUSE_BOX): # all drawing happens inside this
+    MOUSE_BOX,
+    active_mouse_bullets): # all drawing happens inside this
 
     background_surface.fill(WHITE) # adds white to the display
 
@@ -82,7 +82,6 @@ def draw_window(
 
     WINDOW.blit(background_surface, (0, 0))
     WINDOW.blit(background_image, (0, 0))
-    WINDOW.blit(PLAYER_IMAGE, (player_box.x, player_box.y))
     WINDOW.blit(health_text, (WINDOW_X - 120, WINDOW_Y - 20))
     WINDOW.blit(score_text, (25, WINDOW_Y - 20))
 
@@ -92,6 +91,8 @@ def draw_window(
 
     if PLAYER_LOST:
         draw_results(PLAYER_SCORE)
+    else:
+        WINDOW.blit(PLAYER_IMAGE, (player_box.x, player_box.y))
 
     for bullet in active_bullets:
         pygame.draw.rect(WINDOW, RED, bullet)
@@ -101,7 +102,8 @@ def draw_window(
 
     pygame.display.update()
 
-def handle_bullets(active_bullets, player_box, enemy_box, ENEMY_MINION, MOVING_ENEMY, active_enemy_bullets): # handle collision of bullets aswell as movement
+def handle_bullets(active_bullets, player_box, enemy_box, ENEMY_MINION, MOVING_ENEMY, active_enemy_bullets, MOUSE_BOX, active_mouse_bullets): # handle collision of bullets aswell as movement
+    
     for bullet in active_bullets:
         bullet.y -= BULLET_VEL
         if enemy_box.colliderect(bullet) or ENEMY_MINION.colliderect(bullet):
@@ -118,6 +120,7 @@ def handle_bullets(active_bullets, player_box, enemy_box, ENEMY_MINION, MOVING_E
             print("you got hit")
 
 def draw_results(total_score):
+
     game_over_text = GAME_OVER_FONT.render("You have lost! Total score: " + str(total_score), 1, RED)
     WINDOW.blit(game_over_text, (WINDOW_X / 2 - game_over_text.get_width() / 2, WINDOW_Y / 2 - game_over_text.get_height() ) )
     print(game_over_text.get_width())
@@ -137,21 +140,39 @@ def draw_results(total_score):
 
     print("game is restarting...")
     main_loop() # restart main loop (game setting)
+
+def draw_effect(scale, effect_type, rect_box):
+
+    image = pygame.image.load('assets/images/effect/' + effect_type + '/effect.png')
+
+    # scale image after it's original width and height
+    image = pygame.transform.scale(image, (image.get_width() * scale, image.get_height() * scale))
+
+    time = pygame.time.get_ticks()
+
+    # 300 milliseconds = 0.3 seconds which will be how long the effect is on screen
+    EFFECT_DURATION = 300
     
-            
+    if pygame.time.get_ticks() - time > EFFECT_DURATION:
+        pass
+    else:
+        WINDOW.blit(image, (rect_box.x - rect_box.width, rect_box.y - rect_box.height))
+
+    pygame.display.update()
+
 def main_loop():
 
     active_bullets = []
 
     active_enemy_bullets = []
 
+    active_mouse_bullets = []
+
     PLAYER_HEALTH = 10
 
     PLAYER_SCORE = 0
 
     PLAYER_LOST = False
-
-    MOUSE_BOX = pygame.Rect(250, 250, 40, 40)
 
     player_box = pygame.Rect(100, 300, PLAYER_WIDTH, PLAYER_HEIGHT) # initialize rectangle (define dimensions)
 
@@ -161,18 +182,21 @@ def main_loop():
 
     MOVING_ENEMY = pygame.Rect(500, 60, 40, 40) # flying mini enemies. Starts at position: (x, y) = (500, 600)
 
+    MOUSE_BOX = pygame.Rect(40, 40, 8, 8)
+
     clock = pygame.time.Clock()
+
 
     run = True # game loop = True
 
     while run: # while game is looping...
-
+    
         clock.tick(FPS) # ensures loop never goes above fps variable
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
-        
+            
             if event.type == pygame.KEYDOWN and len(active_bullets) < BULLETS_LIMIT: # True if key is held down and list of bullets has not reached max
                 if event.key == pygame.K_SPACE:
                     SHOOT_SOUND.play()
@@ -181,8 +205,14 @@ def main_loop():
 
                 if event.key == pygame.K_BACKSPACE:
                     SHOOT_SOUND.play()
-                    bullet_box = pygame.Rect(MOVING_ENEMY.x + MOVING_ENEMY.width / 2 - 2, MOVING_ENEMY.y, 4, 4) # create new bullet Rect
+                    bullet_box = pygame.Rect(MOVING_ENEMY.x + MOVING_ENEMY.width / 2 - 2, MOVING_ENEMY.y + MOVING_ENEMY.height / 2 - 2, 4, 4) # create new bullet Rect
                     active_enemy_bullets.append(bullet_box) # append bullet Rect to active bullets list
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    SHOOT_SOUND.play()
+                    bullet_box = pygame.Rect(MOUSE_BOX.x + MOUSE_BOX.width / 2 - 2, MOUSE_BOX.y + MOUSE_BOX.height / 2, 8,8)
+                    active_mouse_bullets.append(bullet_box)
 
             if event.type == PLAYER_WAS_HIT_EVENT:
                 PLAYER_HEALTH -= 1 # subtract hp every time player is attacked
@@ -197,6 +227,7 @@ def main_loop():
                     PLAYER_SCORE += 1
 
         if PLAYER_HEALTH <= 0:
+            draw_effect(5, 'explosion', player_box)
             PLAYER_LOST = True
 
         keys_pressed = pygame.key.get_pressed()
@@ -220,14 +251,16 @@ def main_loop():
             player_box.y += VEL
         if keys_pressed[pygame.K_UP] and player_box.y > 0:
             player_box.y -= VEL
+        #if keys_pressed[pygame.K_f]:
 
-        mouse_cursor_x = pygame.mouse.get_pos()[0]
-        mouse_cursor_y = pygame.mouse.get_pos()[1]
+        mouse_cursor_x = pygame.mouse.get_pos()[0] - 20
+        mouse_cursor_y = pygame.mouse.get_pos()[1] - 20
+        pygame.mouse.set_visible(False)
         
         MOUSE_BOX.x = mouse_cursor_x
         MOUSE_BOX.y = mouse_cursor_y
 
-        handle_bullets(active_bullets, player_box, enemy_box, ENEMY_MINION, MOVING_ENEMY, active_enemy_bullets)
+        handle_bullets(active_bullets, player_box, enemy_box, ENEMY_MINION, MOVING_ENEMY, active_enemy_bullets, active_mouse_bullets, MOUSE_BOX)
 
         draw_window(
             player_box, 
@@ -240,8 +273,11 @@ def main_loop():
             PLAYER_SCORE, 
             active_enemy_bullets, 
             PLAYER_LOST,
-            MOUSE_BOX
+            MOUSE_BOX,
+            active_mouse_bullets
             )
+
+        #if keys_pressed[pygame.K_r]:
 
     pygame.quit()
 
