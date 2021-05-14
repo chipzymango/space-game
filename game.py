@@ -37,45 +37,30 @@ PLAYER_WAS_HIT_EVENT = pygame.USEREVENT + 1 # create a new event for when player
 PLAYER_BULLET_HIT_EVENT = pygame.USEREVENT + 2 # create new element for when a bullet hits an enemy
 
 
-PLAYER_IMAGE = pygame.image.load("assets/images/rocket_class_1.png") # load image
-
-ENEMY_IMAGE = pygame.image.load("assets/images/rocket_class_1_p2.png") # load image
-
-PLAYER_IMAGE.set_colorkey(WHITE) # make white pixels transparent
-
-PLAYER_WIDTH = PLAYER_IMAGE.get_width()
-
-PLAYER_HEIGHT = PLAYER_IMAGE.get_height()
-
 SHOOT_SOUND = pygame.mixer.Sound("assets/sounds/shooting_sfx.wav")
 
 NEW_LIFE = pygame.mixer.Sound("assets/sounds/1up_sfx.wav")
 
 ROCKET_EXPLOSION_SOUND = pygame.mixer.Sound("assets/sounds/player_lost.wav")
 
-background_image = pygame.image.load("assets/images/space_bg.jpg")
+background_image = pygame.image.load("assets/visual/background/space_bg.jpg")
 
 background_image = pygame.transform.scale(background_image, (1200, 800))
 
 background_surface = pygame.Surface((WINDOW_X, WINDOW_Y)) # size of surface is equal to size of window
 
-tree_image = pygame.image.load("assets/images/tree.png")
+tree_image = pygame.image.load("assets/visual/obstacles/tree.png")
 
 tree_image.set_colorkey((255, 255, 255))
 tree_image = pygame.transform.scale(tree_image, (tree_image.get_width()*2, tree_image.get_height()*2) )
 
 class Rocket(): # we use this class every time we want to add a new rocket to the screen
-    def __init__(self, char_type, x, y, scale, health, speed): # initialize variables
+    def __init__(self, rocket_id, x, y, scale, health, speed): # initialize variables
 
-        self.char_type = char_type
+        self.rocket_id = rocket_id
 
-        # check if this rocket is a player-rocket
-        if self.char_type == 'player':
-            self.image = PLAYER_IMAGE
-
-        else:
-            self.image = ENEMY_IMAGE
-
+        self.image = pygame.image.load('assets/visual/rockets/rocket_' + str(rocket_id) + '.png')
+        
         self.x = x
         self.y = y
 
@@ -95,7 +80,7 @@ class Rocket(): # we use this class every time we want to add a new rocket to th
         # below a is rectangle box of the rocket
         # it can work as a hitbox for collision
         # this is NOT used to move the rocket itself
-        # for that you can use dx and dy
+        # for that you must use dx and dy
         self.rect = self.image.get_rect()
         self.active_bullet_list = []
         self.alive = True
@@ -104,6 +89,8 @@ class Rocket(): # we use this class every time we want to add a new rocket to th
             print("DED")
 
         self.image = pygame.transform.rotate(self.image, 90)
+        self.image.set_colorkey(WHITE) # make white pixels transparent
+
 
     def move(self): # handle movement of the rocket
 
@@ -125,6 +112,7 @@ class Rocket(): # we use this class every time we want to add a new rocket to th
         self.x += self.dx * self.speed # increment / decrement rectangle's x by dx
         self.y += self.dy * self.speed # increment / decrement rectangle's y by dy
 
+
     def handle_bullets(self):
 
         for each_bullet in self.active_bullet_list:
@@ -136,24 +124,64 @@ class Rocket(): # we use this class every time we want to add a new rocket to th
             r = pygame.Rect(WINDOW_X - 10, 0, 100, WINDOW_Y)
 
             if r.colliderect(each_bullet):
-
+                ROCKET_EXPLOSION_SOUND.play()
                 self.active_bullet_list.remove(each_bullet)
+                bullet_explosion = Effect(1, each_bullet.x - 30, each_bullet.y, 5)
+                active_effects.append(bullet_explosion)
+                
 
     def shoot(self):
 
-        self.bullet = pygame.Rect(self.x + self.rect.width * self.scale, self.y + self.rect.height * self.scale / 4 + 2, 4 * self.scale / 2, 4 * self.scale / 2) 
+        self.bullet = pygame.Rect(self.x + self.rect.width * 3 * self.scale, self.y + self.rect.height * 3 * self.scale / 4 + 2, 4 * self.scale / 2, 4 * self.scale / 2) 
 
         self.active_bullet_list.append(self.bullet)
         
 
     def draw(self):
 
-        self.image = pygame.transform.scale(self.image, (self.rect.height * self.scale, self.rect.width * self.scale)) #self.rect.x * self.scale, self.rect.y * self.scale
+        self.image = pygame.transform.scale(self.image, (self.rect.height * 3 * self.scale, self.rect.width * 3 * self.scale)) #self.rect.x * self.scale, self.rect.y * self.scale
 
         self.image.set_colorkey((255, 255, 255))
 
         WINDOW.blit(self.image, (self.x, self.y))
+
+        pygame.display.update()
+
+
+class Effect():
+    def __init__(self, effect_type, x, y, scale):
         
+        self.effect_type = effect_type
+        self.x = x
+        self.y = y
+        self.scale = scale
+
+        self.animation_list = []
+        self.frame_index = 0
+        for i in range(7):
+            current_image = pygame.image.load('assets/visual/explosion_animation/' + str(i) + '.png')
+            self.animation_list.append(current_image)
+
+        self.current_image = pygame.image.load('assets/visual/explosion_animation/' + str(self.frame_index) + '.png')
+
+        self.update_time = pygame.time.get_ticks()
+        
+    def update_frame(self):
+
+        self.current_image = pygame.image.load('assets/visual/explosion_animation/' + str(self.frame_index) + '.png')
+        self.current_image = pygame.transform.scale(self.current_image, (self.current_image.get_width() * self.scale, self.current_image.get_height() * self.scale) )
+
+        if pygame.time.get_ticks() - self.update_time > 100:
+            self.update_time = pygame.time.get_ticks()
+            self.frame_index += 1
+
+        if self.frame_index >= 7:
+            active_effects.remove(self)
+
+    def draw(self):
+
+        WINDOW.blit(self.current_image, (self.x, self.y))
+
         pygame.display.update()
 
 
@@ -180,8 +208,9 @@ def draw_results(total_score):
 
     pygame.time.delay(pause_time)
 
+active_effects = []
 
-player = Rocket('player', 250, 250, 5, 15, 2)
+player = Rocket(1, 250, 250, 1, 15, 1)
 print('Rocket has been initialized')
 
 clock = pygame.time.Clock() # set clock for fps
@@ -194,6 +223,10 @@ while run: # while game is looping...
     player.handle_bullets()
     player.move()
     player.draw()
+
+    for each_animation in active_effects:
+        each_animation.draw()
+        each_animation.update_frame()
 
     clock.tick(FPS) # ensures loop never goes above fps variable
 
@@ -232,6 +265,7 @@ while run: # while game is looping...
 
     mouse_cursor_x = pygame.mouse.get_pos()[0]
     mouse_cursor_y = pygame.mouse.get_pos()[1]
+
 
 pygame.quit()
 
