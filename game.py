@@ -6,13 +6,13 @@ import os
 # initialize all pygame modules
 pygame.init()
 
-WINDOW_X = 1200
+WINDOW_X = 600
 WINDOW_Y = 600
 
 WINDOW = pygame.display.set_mode((WINDOW_X, WINDOW_Y))
 pygame.display.set_caption("Game")
 
-GUI_FONT = pygame.font.SysFont('consolas', 20) # defining ingame font
+GUI_FONT = pygame.font.SysFont('consolas', 20) # defining font to use in game score and health
 GAME_OVER_FONT = pygame.font.SysFont('consolas', 30) # for game over font
 
 BLACK = (0, 0, 0)
@@ -43,10 +43,10 @@ class Rocket(pygame.sprite.Sprite):
     # initialize the rocket's properties 
     # these variables are created
     # immediately as the class is called
-    def __init__(self, rocket_id, x, y, size=1, health=10, speed=1, flipped=False, auto_group=True):
+    def __init__(self, x, y, rocket_type=0, size=1, health=10, speed=1, flipped=False, auto_group=True):
         pygame.sprite.Sprite.__init__(self)
-        self.rocket_id = rocket_id        
-        self.image = pygame.image.load('assets/visual/rockets/rocket_' + str(rocket_id) + '.png')
+        self.rocket_type = rocket_type
+        self.image = pygame.image.load('assets/visual/rockets/rocket_' + str(self.rocket_type) + '.png')
         self.x = x
         self.y = y
         self.dx = 0 # delta x
@@ -67,6 +67,9 @@ class Rocket(pygame.sprite.Sprite):
         if self.alive == False:
             print("You have died!")
 
+        print(self.__class__.__name__)
+        print("is the instance name")
+
         # check if rocket is flipped
         if self.flipped:
             self.image = pygame.transform.rotate(self.image, -90)
@@ -85,11 +88,23 @@ class Rocket(pygame.sprite.Sprite):
          # create a rect from the final image
         self.rect = self.image.get_rect()
         self.bullet_offset = 4
+
+        rocket_id = 0
+
+        for each_rocket in total_rockets_group:
+            rocket_id += 1
+    
+        self.rocket_id = rocket_id
     
         if self.autogroup:
             rocket_group.add(self)
 
+        total_rockets_group.add(self)
+
         print("New rocket created")
+
+        # store the instance's bullets
+        self.active_bullets = []
 
     # the method below will run every game frame and handles
     # repetetive tasks such as displaying images
@@ -108,21 +123,29 @@ class Rocket(pygame.sprite.Sprite):
         pygame.draw.rect(WINDOW, RED, self.rect)
 
         # make white pixels transparent
-        self.image.set_colorkey((WHITE))
+        self.image.set_colorkey(WHITE)
 
         self.check_collisions()
 
         WINDOW.blit(self.image, (self.x, self.y))
 
     def check_collisions(self):
-        # check if a bullet collides with this rocket
-        # if so, delete bullet and rocket
-        if pygame.sprite.spritecollide(self, bullet_group, True):
-            print("rocket '" + str(self) + "'has collided with a bullet")
-            rocket_group.remove(self)
-            self.alive = False
-            explode = Effect('explosion_animation', self.x, self.y, size=3)
-            self.kill()
+        # check if bullet collides with this rocket
+        if pygame.sprite.spritecollide(self, bullet_group, False):
+
+            # for each bullet in bullet group
+            for each_bullet_sprite in pygame.sprite.spritecollide(self, bullet_group, False):
+
+                # if this rocket collides with its own bullet with the same id
+                if each_bullet_sprite.parent_rocket_id == self.rocket_id:
+                    pass
+                else:
+                    print("rocket " + str(self.rocket_id) + " has collided with bullet " + str(each_bullet_sprite.parent_rocket_id))
+                    rocket_group.remove(self)
+                    bullet_group.remove(each_bullet_sprite)
+                    self.alive = False
+                    explode = Effect('explosion_animation', self.x, self.y, size=self.size)
+                    self.kill()
 
     def move(self):
         if self.alive:
@@ -153,15 +176,20 @@ class Rocket(pygame.sprite.Sprite):
         # bullet spawns in the right position
         if self.alive:
             if not self.flipped:
-                self.bullet = Bullet(self.x + self.image.get_width() + self.bullet_offset, self.y + self.image.get_height() / 2, size=self.size, speed=self.speed, flipped=self.flipped)
-            else:
-                self.bullet = Bullet(self.x  - self.bullet_offset, self.y + self.image.get_height() / 2, size=self.size, speed=self.speed, flipped=self.flipped)
-        else:
-            print("you are dead")
+                self.bullet = Bullet(self.rocket_id, self.x + self.image.get_width(), self.y + self.image.get_height() / 2, size=self.size, speed=self.speed * 4, flipped=self.flipped)
+                self.active_bullets.append(self.bullet)
 
-class Bullet(Rocket, pygame.sprite.Sprite):
-    def __init__(self, x, y, size=1, speed=5, flipped=False):
+            else:
+                self.bullet = Bullet(self.rocket_id, self.x, self.y + self.image.get_height() / 2, size=self.size, speed=self.speed * 4, flipped=self.flipped)
+                self.active_bullets.append(self.bullet)
+            
+        else:
+            print("rocket " + str(self.rocket_id) + " is already dead")
+
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, parent_rocket_id, x, y, size=1, speed=1, flipped=False):
         pygame.sprite.Sprite.__init__(self)
+        self.parent_rocket_id = parent_rocket_id
         self.image = pygame.image.load('assets/visual/bullets/0.png')
         self.rocket_flipped = flipped
         self.x = x
@@ -171,7 +199,6 @@ class Bullet(Rocket, pygame.sprite.Sprite):
         self.image = pygame.transform.scale(self.image, (self.image.get_width() * self.size, self.image.get_height() * self.size) )
         self.rect = self.image.get_rect()
         self.effect_startup_timer = pygame.time.get_ticks()
-        self.effect_startup_period = 100
         bullet_group.add(self)
         SHOOT_SOUND.play()
         print("Bullet shot!")
@@ -187,8 +214,8 @@ class Bullet(Rocket, pygame.sprite.Sprite):
             self.x += 2 * self.speed
         
         if self.x > WINDOW_X or self.x < 0:
-            print("Bullet reached border, deleting.")
-            bullet_group.remove(self)
+            print("Bullet " + str(self.parent_rocket_id) + " reached border, deleting.")
+            self.kill()
 
         WINDOW.blit(self.image, (self.x, self.y))
 
@@ -391,10 +418,14 @@ background_effect_group = pygame.sprite.Group()
 rocket_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 obstacles_group = pygame.sprite.Group()
+total_rockets_group = pygame.sprite.Group()
 
-player = Rocket(1, 250, 250, 5, 15, 1)
+player = Rocket(250, 250, 1, 5, 15, 1)
 
-enemy = Rocket(0, 100, 100, 4, 10, 1, flipped=True)
+enemy = Rocket(100, 100, 0, 4, 10, 1, flipped=True)
+
+# for r in range(20):
+#     r = Rocket(0, 0)
 
 # star = background_star_animation
 # rocket_fire = rocket_flame_animation
@@ -435,7 +466,6 @@ while run: # while game is looping...
         if event.type == pygame.KEYDOWN: #and len(player.active_bullet_list) < BULLETS_LIMIT: # True if key is held down and list of bullets has not reached max
             if event.key == pygame.K_SPACE:
                 player.shoot()
-                print("Bullet shot!")
 
             if event.key == pygame.K_BACKSPACE:
                 enemy.shoot()
@@ -451,7 +481,7 @@ while run: # while game is looping...
                 else:
                     flip_chance = False    
                 
-                drone = Rocket(0, rx, ry, size=2, flipped=flip_chance)
+                drone = Rocket(rx, ry, size=2, flipped=flip_chance)
 
     # this variable is assigned to a key
     # that is being pressed at the current frame
