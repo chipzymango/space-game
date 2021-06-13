@@ -12,7 +12,7 @@ WINDOW_Y = 600
 WINDOW = pygame.display.set_mode((WINDOW_X, WINDOW_Y))
 pygame.display.set_caption("Game")
 
-GUI_FONT = pygame.font.SysFont('consolas', 20) # defining font to use in game score and health
+GUI_FONT = pygame.font.SysFont('consolas', 20) # defining ingame font
 GAME_OVER_FONT = pygame.font.SysFont('consolas', 30) # for game over font
 
 BLACK = (0, 0, 0)
