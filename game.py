@@ -461,26 +461,23 @@ class Button(pygame.sprite.Sprite):
             self.color = WHITE
             if mouse_key_pressed[0]:
                 self.color = YELLOW
-                self.clicked = True
         else:
             self.color = self.default_color
-
-        if self.clicked:
-            render_main_menu = False
-            render_in_game = True
-
-            self.clicked = False
 
         pygame.draw.rect(WINDOW, self.color, self.button_rect)
         WINDOW.blit(self.button_text, (self.x + self.button_rect.width / 3, self.y + self.button_rect.height / 3 ))
 
-b = Button(WINDOW_X / 2.5, WINDOW_Y - 100, 150, 50, text="start")
+menu_button = Button(WINDOW_X / 2.5, WINDOW_Y - 100, 150, 50, text="start")
+game_button = Button(WINDOW_X - 100, 20, 80, 25, color=YELLOW, text="menu", font_size=14)
+reset_button = Button(WINDOW_X - 200, 20, 80, 25, color=ORANGE, text="reset", font_size=14)
+
 title_image = pygame.image.load('assets/visual/menu/game_logo2.png').convert()
 game_mouse_cursor_image = pygame.image.load("assets/visual/menu/mouse.png").convert()
 game_mouse_cursor_image = pygame.transform.scale(game_mouse_cursor_image, (game_mouse_cursor_image.get_width() * 2, game_mouse_cursor_image.get_height() * 2))
 game_mouse_cursor_image.set_colorkey((255,255,255))
 game_mouse_cursor_rect = game_mouse_cursor_image.get_rect()
 
+# set / initialize game entities
 player = Rocket(500, 500, 1, speed=3, size=3)
 enemy = Rocket(100, 100, 0, 4, 10, 1, flipped=True)
 
@@ -492,9 +489,34 @@ for each_star in range(40):
         variant = 'background_star_animation/blue'
     each_star = BackgroundEffect(variant, rx, ry, size=1, looping=True, loop_with_reverse=True)
 
-test_tree = Obstacle(1200, 500)
+    test_tree = Obstacle(1200, 500)
 
+def initialize_game():
+
+    rocket_group.empty()
+    bullet_group.empty()
+    effect_group.empty()
+    background_effect_group.empty()
+    obstacles_group.empty()
+    total_rockets_group.empty()
+    total_obstacles_group.empty()
+
+    WINDOW.fill(SPACE_BLACK)
+    player = Rocket(500, 500, 1, speed=3, size=3)
+    enemy = Rocket(100, 100, 0, 4, 10, 1, flipped=True)
+
+    for each_star in range(40):
+        rx = random.randint(10, WINDOW_X - 10)
+        ry = random.randint(10, WINDOW_X - 10)
+        variant = 'background_star_animation'
+        if each_star % 2 == 1: # every odd number will return 1
+            variant = 'background_star_animation/blue'
+        each_star = BackgroundEffect(variant, rx, ry, size=1, looping=True, loop_with_reverse=True)
+
+    test_tree = Obstacle(1200, 500)
+    
 hide_mouse = False
+reset_game = False
 
 run = True # game loop = True
 while run: # while game is looping...
@@ -507,10 +529,32 @@ while run: # while game is looping...
     game_mouse_cursor_rect.x = real_mouse_cursor_x
     game_mouse_cursor_rect.y = real_mouse_cursor_y
 
+    # reinitialize game entities
+    if reset_game:
+        initialize_game()
+        reset_game = False
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
 
+        if event.type == pygame.MOUSEBUTTONUP:
+
+            # check if mouse button is clicked on button
+            if menu_button.button_rect.colliderect(game_mouse_cursor_rect):
+                if event.button == 1:
+                    menu_button.clicked = True
+                    hide_mouse = True
+            
+            if game_button.button_rect.colliderect(game_mouse_cursor_rect):
+                if event.button == 1:
+                    game_button.clicked = True
+
+            # if reset_button.button_rect.colliderect(game_mouse_cursor_rect):
+            #         if event.button == 1:
+            #             reset_button.clicked = True
+
+        # hide / show mouse in main menu with 'h' button
         if render_main_menu:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_h:
@@ -519,6 +563,7 @@ while run: # while game is looping...
                     else:
                         hide_mouse = False
 
+        # handle rocket shooting inputs
         elif render_in_game:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
@@ -533,24 +578,38 @@ while run: # while game is looping...
                     else:
                         hide_mouse = False
 
+    # if main menu is active
     if render_main_menu:
         WINDOW.fill(GRAY)
         WINDOW.blit(title_image, (250, 50) )
-        buttons_group.update()
+
+        # updating the button each frame
+        # so it can detect clicks
+        menu_button.update()
+
         if not hide_mouse:
             WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
             pygame.mouse.set_visible(False)
 
+    # if game has started
     elif render_in_game:
         WINDOW.fill(SPACE_BLACK)
-        rocket_group.update()
-        player.move()
-        enemy.move()
         effect_group.update()
         background_effect_group.update()
+        rocket_group.update()
         bullet_group.update()
         obstacles_group.update()
-            
+
+        player.move()
+        enemy.move()
+
+        game_button.update()
+        reset_button.update()
+
+        if not hide_mouse:
+            WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
+            pygame.mouse.set_visible(False)
+        
         # this variable is assigned to a key
         # that is being pressed at the current frame
         keys_pressed = pygame.key.get_pressed()
@@ -575,7 +634,6 @@ while run: # while game is looping...
         else:
             player.moving_up = False
             
-
         if keys_pressed[pygame.K_d] and enemy.x + enemy.image.get_width() < WINDOW_X:
             enemy.moving_right = True
         else:
@@ -619,9 +677,27 @@ while run: # while game is looping...
             if keys_pressed[pygame.K_LSHIFT]:
                 drone.shoot()
 
-        if not hide_mouse:
-            WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
-            pygame.mouse.set_visible(False)
+    # check which buttons were clicked
+    if menu_button.clicked:
+        render_main_menu = False
+        render_in_game = True
+
+        # falsify button click so it can be used again        
+        menu_button.clicked = False
+
+    if game_button.clicked:
+        render_in_game = False
+        render_main_menu = True
+
+        game_button.clicked = False
+
+    if reset_button.clicked:
+        reset_game = True
+
+    # hide / show mouse cursor
+    if not hide_mouse:
+        WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
+        pygame.mouse.set_visible(False)
 
     pygame.display.update() # update the display every frame
 
