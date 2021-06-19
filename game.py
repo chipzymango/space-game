@@ -72,7 +72,9 @@ class Rocket(pygame.sprite.Sprite):
         self.dy = 0 # delta y
         self.size = size
         self.speed = speed
-        self.accel = self.speed / 10
+        self.accel = self.speed / 20
+        self.max_xvelocity = self.speed
+        self.max_yvelocity = self.speed / 2
         self.health = health
         self.score = 0
         self.flipped = flipped
@@ -140,26 +142,57 @@ class Rocket(pygame.sprite.Sprite):
 
         WINDOW.blit(self.image, (self.x, self.y))
 
+
     def move(self):
+
         if self.alive:
-            # increase or decrease x coordinate by speed
-            # which was chosen when calling the class
+            # increase or decrease x coordinate by acceleration
+            # until it reaches max_velocity for the rocket
             if self.moving_right:
-                self.dx = 2
-            elif self.moving_left:
-                self.dx = -2
+                if self.dx >= self.max_xvelocity:
+                    self.dx == self.max_xvelocity
+                else:
+                    self.dx += self.accel
             else:
-                self.dx = 0
+                if self.dx > 0:
+                    self.dx -= self.accel
+
+                    
+            if self.moving_left:
+                if self.dx <= -self.max_xvelocity:
+                    self.dx = -self.max_xvelocity
+                else:
+                    self.dx += -self.accel
+            else:
+                if self.dx < 0:
+                    self.dx += self.accel
+
+
+            if self.moving_down:
+                if self.dy >= self.max_yvelocity:
+                    self.dy = self.max_yvelocity
+                else:
+                    self.dy += self.accel
+            else:
+                if self.dy > 0:
+                    self.dy -= self.accel
+
 
             if self.moving_up:
-                self.dy = -2
-            elif self.moving_down:
-                self.dy = 2
+                if self.dy <= -self.max_yvelocity:
+                    self.dy = -self.max_yvelocity
+                else:
+                    self.dy += -self.accel
             else:
-                self.dy = 0
+                if self.dy < 0:
+                    self.dy += self.accel
+
+        # round up the numbers to prevent inaccuracy
+        self.dx = round(self.dx, 2)
+        self.dy = round(self.dy, 2)
 
          # increment / decrement rectangle's
-         # x by dx and its y by dy
+         # x coord. by dx and its y by dy
         self.x += self.dx * self.speed
         self.y += self.dy * self.speed
 
@@ -480,7 +513,7 @@ game_mouse_cursor_rect = game_mouse_cursor_image.get_rect()
 
 player_start_x, player_start_y = 500, 400
 # set / initialize game entities
-player = Rocket(player_start_x, player_start_y, 1, speed=3, size=5)
+player = Rocket(player_start_x, player_start_y, 1, speed=3, size=3)
 enemy = Rocket(100, 100, 0, 4, 10, 1, flipped=True)
 
 for each_star in range(40):
@@ -514,6 +547,10 @@ def initialize_game():
     
     # reset players position back to original positions
     player.x, player.y = player_start_x, player_start_y
+    player.alive = True
+    enemy.alive = True
+    player.dx = 0
+    player.dy = 0
 
     for each_star in range(40):
         rx = random.randint(10, WINDOW_X - 10)
@@ -530,7 +567,7 @@ reset_game = False
 
 run = True # game loop = True
 while run: # while game is looping...
-
+    print(player.dx)
     # this for loop is not compatible with more than 2 rockets on the screen
     clock.tick(FPS) # ensures loop never goes above fps variable
 
@@ -603,8 +640,8 @@ while run: # while game is looping...
 
     # - render the game screen -
     elif render_in_game:
-        WINDOW.fill(SPACE_BLACK)
 
+        WINDOW.fill(SPACE_BLACK)
         background_effect_group.update()
         rocket_group.update()
         obstacles_group.update()
