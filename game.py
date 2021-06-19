@@ -477,8 +477,10 @@ game_mouse_cursor_image = pygame.transform.scale(game_mouse_cursor_image, (game_
 game_mouse_cursor_image.set_colorkey((255,255,255))
 game_mouse_cursor_rect = game_mouse_cursor_image.get_rect()
 
+
+player_start_x, player_start_y = 500, 400
 # set / initialize game entities
-player = Rocket(500, 500, 1, speed=3, size=3)
+player = Rocket(player_start_x, player_start_y, 1, speed=3, size=5)
 enemy = Rocket(100, 100, 0, 4, 10, 1, flipped=True)
 
 for each_star in range(40):
@@ -489,10 +491,11 @@ for each_star in range(40):
         variant = 'background_star_animation/blue'
     each_star = BackgroundEffect(variant, rx, ry, size=1, looping=True, loop_with_reverse=True)
 
-    test_tree = Obstacle(1200, 500)
+test_tree = Obstacle(1200, 500)
 
 def initialize_game():
-
+    
+    # kill all previous entities / sprites
     rocket_group.empty()
     bullet_group.empty()
     effect_group.empty()
@@ -502,8 +505,15 @@ def initialize_game():
     total_obstacles_group.empty()
 
     WINDOW.fill(SPACE_BLACK)
-    player = Rocket(500, 500, 1, speed=3, size=3)
-    enemy = Rocket(100, 100, 0, 4, 10, 1, flipped=True)
+
+    # simply re-add player to rocket group since
+    # player is still an instance of the rocket class
+    # (no need to recreate player instance)
+    rocket_group.add(player)
+    rocket_group.add(enemy)
+    
+    # reset players position back to original positions
+    player.x, player.y = player_start_x, player_start_y
 
     for each_star in range(40):
         rx = random.randint(10, WINDOW_X - 10)
@@ -550,9 +560,9 @@ while run: # while game is looping...
                 if event.button == 1:
                     game_button.clicked = True
 
-            # if reset_button.button_rect.colliderect(game_mouse_cursor_rect):
-            #         if event.button == 1:
-            #             reset_button.clicked = True
+            if reset_button.button_rect.colliderect(game_mouse_cursor_rect):
+                    if event.button == 1:
+                        reset_button.clicked = True
 
         # hide / show mouse in main menu with 'h' button
         if render_main_menu:
@@ -578,7 +588,7 @@ while run: # while game is looping...
                     else:
                         hide_mouse = False
 
-    # if main menu is active
+    # - render the main menu screen -
     if render_main_menu:
         WINDOW.fill(GRAY)
         WINDOW.blit(title_image, (250, 50) )
@@ -591,24 +601,21 @@ while run: # while game is looping...
             WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
             pygame.mouse.set_visible(False)
 
-    # if game has started
+    # - render the game screen -
     elif render_in_game:
         WINDOW.fill(SPACE_BLACK)
-        effect_group.update()
+
         background_effect_group.update()
         rocket_group.update()
-        bullet_group.update()
         obstacles_group.update()
+        bullet_group.update()
+        effect_group.update()
 
         player.move()
         enemy.move()
 
         game_button.update()
         reset_button.update()
-
-        if not hide_mouse:
-            WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
-            pygame.mouse.set_visible(False)
         
         # this variable is assigned to a key
         # that is being pressed at the current frame
@@ -677,6 +684,10 @@ while run: # while game is looping...
             if keys_pressed[pygame.K_LSHIFT]:
                 drone.shoot()
 
+            if not hide_mouse:
+                WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
+                pygame.mouse.set_visible(False)
+
     # check which buttons were clicked
     if menu_button.clicked:
         render_main_menu = False
@@ -684,6 +695,9 @@ while run: # while game is looping...
 
         # falsify button click so it can be used again        
         menu_button.clicked = False
+
+        reset_game = True
+        hide_mouse = False
 
     if game_button.clicked:
         render_in_game = False
@@ -693,6 +707,9 @@ while run: # while game is looping...
 
     if reset_button.clicked:
         reset_game = True
+        render_in_game = True
+
+        reset_button.clicked = False
 
     # hide / show mouse cursor
     if not hide_mouse:
