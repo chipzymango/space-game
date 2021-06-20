@@ -38,6 +38,8 @@ PLAYER_BULLET_HIT_EVENT = pygame.USEREVENT + 2 # create new element for when a b
 SHOOT_SOUND = pygame.mixer.Sound("assets/sounds/shooting_sfx.wav")
 NEW_LIFE_SOUND = pygame.mixer.Sound("assets/sounds/1up_sfx.wav")
 ROCKET_EXPLOSION_SOUND = pygame.mixer.Sound("assets/sounds/player_lost.wav")
+BUTTON_CLICKED = pygame.mixer.Sound("assets/sounds/buttonclick.wav")
+BUTTON_CLICKED_BACK = pygame.mixer.Sound("assets/sounds/buttonclickback.wav")
 
 # initializing groups
 effect_group = pygame.sprite.Group()
@@ -591,7 +593,9 @@ def initialize_game():
     print("Resetting game...")
 
     # kill all previous entities / sprites
+    rocket_group.empty()
     bullet_group.empty()
+    effect_group.empty()
     background_effect_group.empty()
     obstacles_group.empty()
     total_rockets_group.empty()
@@ -600,9 +604,18 @@ def initialize_game():
     WINDOW.fill(SPACE_BLACK)
 
     # reset players position back to original positions
+    rocket_group.add(player)
+    rocket_group.add(enemy)
+    effect_group.add(player.rocket_engine_fire_effect)
+    effect_group.add(enemy.rocket_engine_fire_effect)
+
     player.x, player.y = player_start_x, player_start_y
     player.alive = True
     enemy.alive = True
+    rocket0.alive = True
+    rocket1.alive = True
+    rocket2.alive = True
+    rocket3.alive = True
     player.dx = 0
     player.dy = 0
 
@@ -788,18 +801,22 @@ while run: # while game is looping...
         menu_button.clicked = False
 
         hide_mouse = False
+        BUTTON_CLICKED.play()
+
 
     if game_button.clicked:
         render_in_game = False
         render_main_menu = True
 
         game_button.clicked = False
+        BUTTON_CLICKED.play()
 
     if reset_button.clicked:
         reset_game = True
         render_in_game = True
 
         reset_button.clicked = False
+        BUTTON_CLICKED_BACK.play()
 
     # hide / show mouse cursor
     if not hide_mouse:
