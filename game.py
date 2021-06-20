@@ -124,6 +124,26 @@ class Rocket(pygame.sprite.Sprite):
         # store the instance's bullets
         self.active_bullets = []
 
+        if self.rocket_type == 0 or self.rocket_type == 1:
+            if not self.flipped:
+                self.rocket_engine_fire_effect = Effect('rocket_flame_animation', self.x - self.image.get_width() / 2, self.y + self.image.get_height() / 2, size=self.size, looping=True, flipped=False, host=self)
+            else:
+                self.rocket_engine_fire_effect = Effect('rocket_flame_animation', self.x + self.image.get_width(), self.y + self.image.get_height() / 2, size=self.size, looping=True, flipped=True, host=self)
+            
+        elif self.rocket_type == 2:
+            if not self.flipped:
+                self.rocket_engine_fire_effect = Effect('rocket_flame_animation', self.x - self.image.get_width() / 2, self.y + self.image.get_height() / 2 + 3 * self.size, size=self.size, looping=True, flipped=False, host=self)
+            else:
+                self.rocket_engine_fire_effect = Effect('rocket_flame_animation', self.x + self.image.get_width(), self.y + self.image.get_height() / 2 + 3 * self.size, size=self.size, looping=True, flipped=True, host=self)
+        
+        elif self.rocket_type == 3:
+            if not self.flipped:
+                self.rocket_engine_fire_effect = Effect('rocket_flame_animation', self.x - self.image.get_width() / 2, self.y + self.image.get_height() / 2  * self.size, size=self.size - 1, looping=True, flipped=False, host=self)
+            else:
+                self.rocket_engine_fire_effect = Effect('rocket_flame_animation', self.x + self.image.get_width(), self.y + self.image.get_height() / 2 * self.size, size=self.size - 1, looping=True, flipped=True, host=self)
+
+
+
     # the method below will run every game frame and handles
     # repetetive tasks such as displaying images
     # and resizing images
@@ -141,7 +161,6 @@ class Rocket(pygame.sprite.Sprite):
         self.image.set_colorkey(WHITE)
 
         WINDOW.blit(self.image, (self.x, self.y))
-
 
     def move(self):
 
@@ -202,11 +221,11 @@ class Rocket(pygame.sprite.Sprite):
         # bullet spawns in the right position
         if self.alive:
             if not self.flipped:
-                self.bullet = Bullet(self.unique_id, self.x + self.image.get_width(), self.y + self.image.get_height() / 2, size=self.size, speed=self.speed * 4, flipped=self.flipped)
+                self.bullet = Bullet(self.unique_id, self.x + self.image.get_width(), self.y + self.image.get_height() / 2 - 1 * self.size, size=self.size, speed=self.speed * 4, flipped=self.flipped)
                 self.active_bullets.append(self.bullet)
 
             else:
-                self.bullet = Bullet(self.unique_id, self.x, self.y + self.image.get_height() / 2, size=self.size, speed=self.speed * 4, flipped=self.flipped)
+                self.bullet = Bullet(self.unique_id, self.x, self.y + self.image.get_height() / 2 - 1 * self.size, size=self.size, speed=self.speed * 4, flipped=self.flipped)
                 self.active_bullets.append(self.bullet)
             
         else:
@@ -285,7 +304,7 @@ class Bullet(pygame.sprite.Sprite):
                     self.kill()
 
 class Effect(pygame.sprite.Sprite):
-    def __init__(self, effect_type, x, y, size=3, cooldown=80, looping=False, loop_with_reverse=False):
+    def __init__(self, effect_type, x, y, size=3, cooldown=80, looping=False, loop_with_reverse=False, flipped=True, host=None):
         pygame.sprite.Sprite.__init__(self)
         self.effect_type = effect_type
         self.x = x
@@ -296,7 +315,9 @@ class Effect(pygame.sprite.Sprite):
         self.COOLDOWN = cooldown
         self.reverse_iteration = False
         self.loop_with_reverse = loop_with_reverse
+        self.flipped = flipped
         self.path = os.listdir('assets/visual/effects/' + str(self.effect_type))
+        self.host = host
 
         self.animation_list = []
 
@@ -317,6 +338,8 @@ class Effect(pygame.sprite.Sprite):
         self.current_image.set_colorkey(WHITE)
 
         effect_group.add(self)
+
+        print("the host of this Effect is", self.host)
         
     def update(self):
 
@@ -353,6 +376,39 @@ class Effect(pygame.sprite.Sprite):
             else:
                 effect_group.remove(self)
                 self.animation_list.clear()
+
+        if self.flipped:
+            self.current_image = pygame.transform.rotate(self.current_image, 180)
+        
+        # check if this effect has a host / source (for example a rocket)
+        if self.host != None:
+            if not self.host.alive:
+                self.kill()
+
+            # position the effect coordinates corresponding to the rocket variant
+            if self.host.rocket_type == 0 or self.host.rocket_type == 1:
+                if not self.host.flipped:
+                    self.x = self.host.x - self.host.image.get_width() / 2 
+                    self.y = self.host.y + 1 * self.size
+                else:
+                    self.x = self.host.x + self.host.image.get_width() - 1 * self.size
+                    self.y = self.host.y + 2 * self.size
+                
+            elif self.host.rocket_type == 2:
+                if not self.host.flipped:
+                    self.x = self.host.x - self.host.image.get_width() / 2
+                    self.y = self.host.y + 4 * self.size
+                else:
+                    self.x = self.host.x + self.host.image.get_width() - 1 * self.size
+                    self.y = self.host.y + 5 * self.size
+
+            elif self.host.rocket_type == 3:
+                if not self.host.flipped:
+                    self.x = self.host.x - self.host.image.get_width() / 2 + 1 * self.size
+                    self.y = self.host.y + 4 * self.size
+                else:
+                    self.x = self.host.x + self.host.image.get_width()
+                    self.y = self.host.y + 5 * self.size
 
         WINDOW.blit(self.current_image, (self.x, self.y))
 
@@ -510,11 +566,16 @@ game_mouse_cursor_image = pygame.transform.scale(game_mouse_cursor_image, (game_
 game_mouse_cursor_image.set_colorkey((255,255,255))
 game_mouse_cursor_rect = game_mouse_cursor_image.get_rect()
 
-
 player_start_x, player_start_y = 500, 400
+
 # set / initialize game entities
-player = Rocket(player_start_x, player_start_y, 1, speed=3, size=3)
-enemy = Rocket(100, 100, 0, 4, 10, 1, flipped=True)
+player = Rocket(player_start_x, player_start_y, 2, speed=3, size=5)
+enemy = Rocket(100, 100, 0, 3, 10, 2, flipped=True)
+
+rocket0 = Rocket(50, 400, 0, 2)
+rocket1 = Rocket(150, 400, 1, 2)
+rocket2 = Rocket(250, 400, 2, 2)
+rocket3 = Rocket(350, 400, 3, 2)
 
 for each_star in range(40):
     rx = random.randint(10, WINDOW_X - 10)
@@ -527,11 +588,10 @@ for each_star in range(40):
 test_tree = Obstacle(1200, 500)
 
 def initialize_game():
-    
+    print("Resetting game...")
+
     # kill all previous entities / sprites
-    rocket_group.empty()
     bullet_group.empty()
-    effect_group.empty()
     background_effect_group.empty()
     obstacles_group.empty()
     total_rockets_group.empty()
@@ -539,12 +599,6 @@ def initialize_game():
 
     WINDOW.fill(SPACE_BLACK)
 
-    # simply re-add player to rocket group since
-    # player is still an instance of the rocket class
-    # (no need to recreate player instance)
-    rocket_group.add(player)
-    rocket_group.add(enemy)
-    
     # reset players position back to original positions
     player.x, player.y = player_start_x, player_start_y
     player.alive = True
@@ -567,7 +621,7 @@ reset_game = False
 
 run = True # game loop = True
 while run: # while game is looping...
-    print(player.dx)
+
     # this for loop is not compatible with more than 2 rockets on the screen
     clock.tick(FPS) # ensures loop never goes above fps variable
 
@@ -644,16 +698,16 @@ while run: # while game is looping...
         WINDOW.fill(SPACE_BLACK)
         background_effect_group.update()
         rocket_group.update()
-        obstacles_group.update()
         bullet_group.update()
         effect_group.update()
+        obstacles_group.update()
 
         player.move()
         enemy.move()
 
         game_button.update()
         reset_button.update()
-        
+
         # this variable is assigned to a key
         # that is being pressed at the current frame
         keys_pressed = pygame.key.get_pressed()
@@ -725,7 +779,7 @@ while run: # while game is looping...
                 WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
                 pygame.mouse.set_visible(False)
 
-    # check which buttons were clicked
+    # --- check which buttons were clicked ---
     if menu_button.clicked:
         render_main_menu = False
         render_in_game = True
@@ -733,7 +787,6 @@ while run: # while game is looping...
         # falsify button click so it can be used again        
         menu_button.clicked = False
 
-        reset_game = True
         hide_mouse = False
 
     if game_button.clicked:
