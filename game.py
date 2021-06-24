@@ -1,7 +1,4 @@
-from typing import cast
 import pygame
-from pygame import init, key
-from pygame import mouse
 from pygame.locals import *
 import random
 import os
@@ -15,14 +12,15 @@ WINDOW_Y = 600
 WINDOW = pygame.display.set_mode((WINDOW_X, WINDOW_Y))
 pygame.display.set_caption("Game")
 
-GUI_FONT = pygame.font.SysFont('consolas', 20) # defining font to use in game score and health
-GAME_OVER_FONT = pygame.font.SysFont('consolas', 30) # for game over font
+DEFAULT_FONT = pygame.font.Font('assets/fonts/dpcomic.ttf', 30) # defining font to use in game score and health
 
+# initializing color
 BLACK = (0, 0, 0)
 SPACE_BLACK = (15, 15, 15)
 RED = (255, 0, 0)
 WHITE = (255, 255, 255)
 GRAY = (200, 200, 200)
+MENU_GRAY = (210, 215, 215)
 INGAME_BG = (225, 225, 225)
 DARK_RED = (175, 0, 0)
 YELLOW = (255, 255, 0)
@@ -32,9 +30,11 @@ FPS = 60
 
 BULLETS_LIMIT = 3
 
+# initializing events
 PLAYER_WAS_HIT_EVENT = pygame.USEREVENT + 1 # create a new event for when player gets hit by enemy
 PLAYER_BULLET_HIT_EVENT = pygame.USEREVENT + 2 # create new element for when a bullet hits an enemy
 
+# initializing sound effects
 SHOOT_SOUND = pygame.mixer.Sound("assets/sounds/shooting_sfx.wav")
 NEW_LIFE_SOUND = pygame.mixer.Sound("assets/sounds/1up_sfx.wav")
 ROCKET_EXPLOSION_SOUND = pygame.mixer.Sound("assets/sounds/player_lost.wav")
@@ -54,9 +54,6 @@ buttons_group = pygame.sprite.Group()
 mouse_key_pressed = pygame.mouse.get_pressed()
 
 clock = pygame.time.Clock() # set clock for fps
-
-render_main_menu = True
-render_in_game = False
 
 # we use this class every time we want
 # to add a new rocket to the screen
@@ -223,11 +220,11 @@ class Rocket(pygame.sprite.Sprite):
         # bullet spawns in the right position
         if self.alive:
             if not self.flipped:
-                self.bullet = Bullet(self.unique_id, self.x + self.image.get_width(), self.y + self.image.get_height() / 2 - 1 * self.size, size=self.size, speed=self.speed * 4, flipped=self.flipped)
+                self.bullet = Bullet(self.unique_id, self.x + self.image.get_width(), self.y + self.image.get_height() / 2 - 1 * self.size, size=self.size, speed=self.speed, flipped=self.flipped)
                 self.active_bullets.append(self.bullet)
 
             else:
-                self.bullet = Bullet(self.unique_id, self.x, self.y + self.image.get_height() / 2 - 1 * self.size, size=self.size, speed=self.speed * 4, flipped=self.flipped)
+                self.bullet = Bullet(self.unique_id, self.x, self.y + self.image.get_height() / 2 - 1 * self.size, size=self.size, speed=self.speed, flipped=self.flipped)
                 self.active_bullets.append(self.bullet)
             
         else:
@@ -242,7 +239,7 @@ class Bullet(pygame.sprite.Sprite):
         self.x = x
         self.y = y
         self.size = size
-        self.speed = speed
+        self.speed = speed * 4
         self.image = pygame.transform.scale(self.image, (self.image.get_width() * self.size, self.image.get_height() * self.size) )
         self.rect = self.image.get_rect()
         self.effect_startup_timer = pygame.time.get_ticks()
@@ -524,100 +521,53 @@ class Obstacle(pygame.sprite.Sprite):
             self.x = WINDOW_X + self.image.get_width()
 
         WINDOW.blit(self.image, (self.x, self.y))
+
+def screen_transition_in(new_screen_loop, transition_speed=1):
+    transition_border = pygame.Rect(0 - WINDOW_X, 0, WINDOW_X, WINDOW_Y)
+    running = True
+    while running:
+        clock.tick(FPS)
+        transition_border.x += 20 * transition_speed
+        pygame.draw.rect(WINDOW, BLACK, transition_border)
+        if transition_border.x + WINDOW_X >= WINDOW_X:
+            running = False
+    
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
         
-class Button(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height, color=ORANGE, text='button', font='consolas', font_size=15):
-        pygame.sprite.Sprite.__init__(self)
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.default_color = color
-        self.text = text
-        self.font = pygame.font.SysFont(font, font_size) # defining font to use for buttons
-        self.button_text = self.font.render(self.text, 1, BLACK)
-        self.button_rect = pygame.Rect(self.x, self.y, self.width, self.height)
-        self.clicked = False
+        pygame.display.update() # update the display every frame
 
-        buttons_group.add(self)
+    screen_transition_out(new_screen_loop ,transition_border)
 
-    def update(self):
+def screen_transition_out(new_screen_loop, transition_border, transition_speed=1):
+    running = True
+    while running:
+        clock.tick(FPS)
 
-        global render_main_menu
-        global render_in_game
+        if new_screen_loop == menu_screen_loop:
+            WINDOW.fill(MENU_GRAY)
 
-        mouse_key_pressed = pygame.mouse.get_pressed()
+        elif new_screen_loop == game_screen_loop:
+            WINDOW.fill(SPACE_BLACK)
 
-        if self.button_rect.colliderect(game_mouse_cursor_rect):
-            self.color = WHITE
-            if mouse_key_pressed[0]:
-                self.color = YELLOW
-        else:
-            self.color = self.default_color
+        transition_border.x += 20 * transition_speed
+        pygame.draw.rect(WINDOW, BLACK, transition_border)
+        if transition_border.x >= WINDOW_X:
+            running = False
 
-        pygame.draw.rect(WINDOW, self.color, self.button_rect)
-        WINDOW.blit(self.button_text, (self.x + self.button_rect.width / 3, self.y + self.button_rect.height / 3 ))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
 
-menu_button = Button(WINDOW_X / 2.5, WINDOW_Y - 100, 150, 50, text="start")
-game_button = Button(WINDOW_X - 100, 20, 80, 25, color=YELLOW, text="menu", font_size=14)
-reset_button = Button(WINDOW_X - 200, 20, 80, 25, color=ORANGE, text="reset", font_size=14)
+        pygame.display.update() # update the display every frame
 
-title_image = pygame.image.load('assets/visual/menu/game_logo2.png').convert()
-game_mouse_cursor_image = pygame.image.load("assets/visual/menu/mouse.png").convert()
-game_mouse_cursor_image = pygame.transform.scale(game_mouse_cursor_image, (game_mouse_cursor_image.get_width() * 2, game_mouse_cursor_image.get_height() * 2))
-game_mouse_cursor_image.set_colorkey((255,255,255))
-game_mouse_cursor_rect = game_mouse_cursor_image.get_rect()
+    new_screen_loop()
 
-player_start_x, player_start_y = 500, 400
-
-# set / initialize game entities
-player = Rocket(player_start_x, player_start_y, 2, speed=3, size=5)
-enemy = Rocket(100, 100, 0, 3, 10, 2, flipped=True)
-
-rocket0 = Rocket(50, 400, 0, 2)
-rocket1 = Rocket(150, 400, 1, 2)
-rocket2 = Rocket(250, 400, 2, 2)
-rocket3 = Rocket(350, 400, 3, 2)
-
-for each_star in range(40):
-    rx = random.randint(10, WINDOW_X - 10)
-    ry = random.randint(10, WINDOW_X - 10)
-    variant = 'background_star_animation'
-    if each_star % 2 == 1: # every odd number will return 1
-        variant = 'background_star_animation/blue'
-    each_star = BackgroundEffect(variant, rx, ry, size=1, looping=True, loop_with_reverse=True)
-
-test_tree = Obstacle(1200, 500)
-
-def initialize_game():
-    print("Resetting game...")
-
-    # kill all previous entities / sprites
-    rocket_group.empty()
-    bullet_group.empty()
-    effect_group.empty()
-    background_effect_group.empty()
-    obstacles_group.empty()
-    total_rockets_group.empty()
-    total_obstacles_group.empty()
-
-    WINDOW.fill(SPACE_BLACK)
-
-    # reset players position back to original positions
-    rocket_group.add(player)
-    rocket_group.add(enemy)
-    effect_group.add(player.rocket_engine_fire_effect)
-    effect_group.add(enemy.rocket_engine_fire_effect)
-
-    player.x, player.y = player_start_x, player_start_y
-    player.alive = True
-    enemy.alive = True
-    rocket0.alive = True
-    rocket1.alive = True
-    rocket2.alive = True
-    rocket3.alive = True
-    player.dx = 0
-    player.dy = 0
+def game_screen_loop():
+    # set / initialize game entities
+    player = Rocket(200, 400, 1, speed=2, size=3)
+    enemy = Rocket(100, 100, 0, 3, 10, 2, flipped=True)
 
     for each_star in range(40):
         rx = random.randint(10, WINDOW_X - 10)
@@ -628,86 +578,10 @@ def initialize_game():
         each_star = BackgroundEffect(variant, rx, ry, size=1, looping=True, loop_with_reverse=True)
 
     test_tree = Obstacle(1200, 500)
-    
-hide_mouse = False
-reset_game = False
 
-run = True # game loop = True
-while run: # while game is looping...
-
-    # this for loop is not compatible with more than 2 rockets on the screen
-    clock.tick(FPS) # ensures loop never goes above fps variable
-
-    real_mouse_cursor_x = pygame.mouse.get_pos()[0]
-    real_mouse_cursor_y = pygame.mouse.get_pos()[1]
-    game_mouse_cursor_rect.x = real_mouse_cursor_x
-    game_mouse_cursor_rect.y = real_mouse_cursor_y
-
-    # reinitialize game entities
-    if reset_game:
-        initialize_game()
-        reset_game = False
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            run = False
-
-        if event.type == pygame.MOUSEBUTTONUP:
-
-            # check if mouse button is clicked on button
-            if menu_button.button_rect.colliderect(game_mouse_cursor_rect):
-                if event.button == 1:
-                    menu_button.clicked = True
-                    hide_mouse = True
-            
-            if game_button.button_rect.colliderect(game_mouse_cursor_rect):
-                if event.button == 1:
-                    game_button.clicked = True
-
-            if reset_button.button_rect.colliderect(game_mouse_cursor_rect):
-                    if event.button == 1:
-                        reset_button.clicked = True
-
-        # hide / show mouse in main menu with 'h' button
-        if render_main_menu:
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_h:
-                    if not hide_mouse:
-                        hide_mouse = True
-                    else:
-                        hide_mouse = False
-
-        # handle rocket shooting inputs
-        elif render_in_game:
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    player.shoot()
-
-                if event.key == pygame.K_BACKSPACE:
-                    enemy.shoot()
-
-                if event.key == pygame.K_h:
-                    if not hide_mouse:
-                        hide_mouse = True
-                    else:
-                        hide_mouse = False
-
-    # - render the main menu screen -
-    if render_main_menu:
-        WINDOW.fill(GRAY)
-        WINDOW.blit(title_image, (250, 50) )
-
-        # updating the button each frame
-        # so it can detect clicks
-        menu_button.update()
-
-        if not hide_mouse:
-            WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
-            pygame.mouse.set_visible(False)
-
-    # - render the game screen -
-    elif render_in_game:
-
+    running = True
+    while running:
+        clock.tick(FPS)
         WINDOW.fill(SPACE_BLACK)
         background_effect_group.update()
         rocket_group.update()
@@ -718,13 +592,22 @@ while run: # while game is looping...
         player.move()
         enemy.move()
 
-        game_button.update()
-        reset_button.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
 
-        # this variable is assigned to a key
-        # that is being pressed at the current frame
+            if event.type == KEYDOWN:
+                if event.key == K_ESCAPE:
+                    running = False
+
+                if event.key == pygame.K_SPACE:
+                    player.shoot()
+
+                if event.key == pygame.K_BACKSPACE:
+                    enemy.shoot()
+
         keys_pressed = pygame.key.get_pressed()
-
+    
         if keys_pressed[pygame.K_RIGHT] and player.x + player.image.get_width() < WINDOW_X:
             player.moving_right = True
         else:
@@ -760,17 +643,18 @@ while run: # while game is looping...
         else:
             enemy.moving_down = False
 
-        if keys_pressed[pygame.K_w] and player.y > 0:
-            enemy.moving_up = True
-        else:
-            enemy.moving_up = False
-
         if keys_pressed[pygame.K_m]:
             rx_vel = random.randint(1, 10)
             r_size = random.randint(1, 3)
             ry = random.randint(40, WINDOW_Y - 40)
+            rtype = random.choice([0, 1])
 
-            obst = Obstacle(WINDOW_X + 50, ry, x_vel=rx_vel, size=r_size)
+            if rtype == 0:
+                obst_type = 'tree'
+            elif rtype == 1:
+                obst_type = 'stone'
+
+            obst = Obstacle(WINDOW_X + 50, ry, x_vel=rx_vel, size=r_size, object_type=obst_type)
 
         if keys_pressed[pygame.K_n]:
             rx = random.randint(20, WINDOW_X - 20)
@@ -786,44 +670,44 @@ while run: # while game is looping...
             drone = Rocket(rx, ry, size=2, flipped=flip_chance)
             
             if keys_pressed[pygame.K_LSHIFT]:
-                drone.shoot()
+                for each_rocket in rocket_group:
+                    each_rocket.shoot()
 
-            if not hide_mouse:
-                WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
-                pygame.mouse.set_visible(False)
+        pygame.display.update() # update the display every frame
 
-    # --- check which buttons were clicked ---
-    if menu_button.clicked:
-        render_main_menu = False
-        render_in_game = True
+def menu_screen_loop():
+    running = True
+    while running:
+        clock.tick(FPS)
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        title_image = pygame.image.load('assets/visual/menu/game_logo2.png').convert()
 
-        # falsify button click so it can be used again        
-        menu_button.clicked = False
+        start_button_text = DEFAULT_FONT.render("Start", 1, BLACK)
+        options_button_text = DEFAULT_FONT.render("Options", 1, BLACK)
 
-        hide_mouse = False
-        BUTTON_CLICKED.play()
+        WINDOW.fill(MENU_GRAY)
 
+        start_button = pygame.Rect(400, 500, 150, 50)
+        options_button = pygame.Rect(600, 500, 150, 50)
 
-    if game_button.clicked:
-        render_in_game = False
-        render_main_menu = True
+        pygame.draw.rect(WINDOW, YELLOW, start_button)
+        pygame.draw.rect(WINDOW, YELLOW, options_button)
 
-        game_button.clicked = False
-        BUTTON_CLICKED.play()
+        WINDOW.blit(title_image, (250, 50) )
+        WINDOW.blit(start_button_text, (start_button.x + 80 / 2, start_button.y + 15) )
+        WINDOW.blit(options_button_text, (options_button.x + 80 / 2, options_button.y + 15) )
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
 
-    if reset_button.clicked:
-        reset_game = True
-        render_in_game = True
+            if event.type == MOUSEBUTTONUP:
+                if start_button.collidepoint(mouse_x, mouse_y):
+                    screen_transition_in(game_screen_loop)
 
-        reset_button.clicked = False
-        BUTTON_CLICKED_BACK.play()
-
-    # hide / show mouse cursor
-    if not hide_mouse:
-        WINDOW.blit(game_mouse_cursor_image, (game_mouse_cursor_rect.x, game_mouse_cursor_rect.y))
-        pygame.mouse.set_visible(False)
-
-    pygame.display.update() # update the display every frame
+        pygame.display.update() # update the display every frame
+    
+screen_transition_in(menu_screen_loop)
 
 pygame.quit()
 
