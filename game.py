@@ -522,50 +522,137 @@ class Obstacle(pygame.sprite.Sprite):
 
         WINDOW.blit(self.image, (self.x, self.y))
 
-def screen_transition_in(new_screen_loop, transition_speed=1):
-    transition_border = pygame.Rect(0 - WINDOW_X, 0, WINDOW_X, WINDOW_Y)
-    running = True
-    while running:
-        clock.tick(FPS)
-        transition_border.x += 20 * transition_speed
-        pygame.draw.rect(WINDOW, BLACK, transition_border)
-        if transition_border.x + WINDOW_X >= WINDOW_X:
-            running = False
-    
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-        
-        pygame.display.update() # update the display every frame
+def screen_transition_in(new_screen_loop, transition_speed=1, transition_type='horizontal', reverse=False):
+    if transition_type == 'horizontal':
+        # create a "transition element" which
+        # will add to the transition effect
+        if reverse:
+            transition_element = pygame.Rect(WINDOW_X, 0, WINDOW_X, WINDOW_Y)
+        else:
+            transition_element = pygame.Rect(0 - WINDOW_X, 0, WINDOW_X, WINDOW_Y)
+        running = True
+        while running:
+            clock.tick(FPS)
+            # update the transition element each frame
+            if reverse:
+                transition_element.x -= 20 * transition_speed
+            else:
+                transition_element.x += 20 * transition_speed
 
-    screen_transition_out(new_screen_loop ,transition_border)
+            pygame.draw.rect(WINDOW, BLACK, transition_element)
+            # stop running this screen transition loop
+            # if certain conditions are met
+            if reverse:
+                if transition_element.x < 0:
+                    running = False
+            else:
+                if transition_element.x + WINDOW_X >= WINDOW_X:
+                    running = False
 
-def screen_transition_out(new_screen_loop, transition_border, transition_speed=1):
-    running = True
-    while running:
-        clock.tick(FPS)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+            
+            pygame.display.update() # update the display every frame
 
-        if new_screen_loop == menu_screen_loop:
-            WINDOW.fill(MENU_GRAY)
+    elif transition_type == 'fade':
+        transition_element = pygame.Surface((1200, 600))
+        transition_element.fill(ORANGE)
+        alpha_strength = 0
+        running = True
+        while running:
 
-        elif new_screen_loop == game_screen_loop:
-            WINDOW.fill(SPACE_BLACK)
+            clock.tick(FPS)
+            transition_element.fill(BLACK)
+            alpha_strength += 1
+            transition_element.set_alpha(alpha_strength)
 
-        transition_border.x += 20 * transition_speed
-        pygame.draw.rect(WINDOW, BLACK, transition_border)
-        if transition_border.x >= WINDOW_X:
-            running = False
+            if alpha_strength >= 100:
+                running = False
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
+            WINDOW.blit(transition_element, (0, 0))
 
-        pygame.display.update() # update the display every frame
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+            
+            pygame.display.update()
+
+    screen_transition_out(new_screen_loop ,transition_element, transition_speed, transition_type, reverse=reverse)
+
+def screen_transition_out(new_screen_loop, transition_element, transition_speed=1, transition_type='horizontal', reverse=False):
+    if transition_type == 'horizontal':
+        running = True
+        while running:
+            clock.tick(FPS)
+            if new_screen_loop == menu_screen_loop or new_screen_loop == options_screen_loop:
+                WINDOW.fill(MENU_GRAY)
+            elif new_screen_loop == game_screen_loop:
+                WINDOW.fill(SPACE_BLACK)
+
+            if reverse:
+                transition_element.x -= 20 * transition_speed
+            else:
+                transition_element.x += 20 * transition_speed
+
+            pygame.draw.rect(WINDOW, BLACK, transition_element)
+            if reverse:
+                if transition_element.x <= 0 - WINDOW_X:
+                    running = False
+
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+            else:
+                if transition_element.x >= WINDOW_X:
+                    running = False
+
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+
+            pygame.display.update() # update the display every frame
+
+    elif transition_type == 'fade':
+        alpha_strength = 255
+
+        running = True
+        while running:
+
+            if new_screen_loop == menu_screen_loop or new_screen_loop == options_screen_loop:
+                WINDOW.fill(MENU_GRAY)
+            elif new_screen_loop == game_screen_loop:
+                WINDOW.fill(SPACE_BLACK)
+
+            clock.tick(FPS)
+            transition_element.fill(BLACK)
+            transition_element.set_alpha(alpha_strength)
+
+            alpha_strength -= 5
+
+            if alpha_strength <= 0:
+                running = False
+            
+            WINDOW.blit(transition_element, (0, 0))
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+            
+            pygame.display.update()
 
     new_screen_loop()
 
 def game_screen_loop():
-    # set / initialize game entities
+    # set / reset game entities (to avoid duplicates)
+    rocket_group.empty()
+    bullet_group.empty()
+    effect_group.empty()
+    background_effect_group.empty()
+    obstacles_group.empty()
+    total_rockets_group.empty()
+    total_obstacles_group.empty()
+
     player = Rocket(200, 400, 1, speed=2, size=3)
     enemy = Rocket(100, 100, 0, 3, 10, 2, flipped=True)
 
@@ -605,6 +692,9 @@ def game_screen_loop():
 
                 if event.key == pygame.K_BACKSPACE:
                     enemy.shoot()
+
+                if event.key == pygame.K_ESCAPE:
+                    screen_transition_in(menu_screen_loop)
 
         keys_pressed = pygame.key.get_pressed()
     
@@ -679,13 +769,14 @@ def menu_screen_loop():
     running = True
     while running:
         clock.tick(FPS)
+        
+        WINDOW.fill(MENU_GRAY)
+
         mouse_x, mouse_y = pygame.mouse.get_pos()
         title_image = pygame.image.load('assets/visual/menu/game_logo2.png').convert()
 
         start_button_text = DEFAULT_FONT.render("Start", 1, BLACK)
         options_button_text = DEFAULT_FONT.render("Options", 1, BLACK)
-
-        WINDOW.fill(MENU_GRAY)
 
         start_button = pygame.Rect(400, 500, 150, 50)
         options_button = pygame.Rect(600, 500, 150, 50)
@@ -703,11 +794,45 @@ def menu_screen_loop():
 
             if event.type == MOUSEBUTTONUP:
                 if start_button.collidepoint(mouse_x, mouse_y):
-                    screen_transition_in(game_screen_loop)
+                    screen_transition_in(game_screen_loop, transition_type='horizontal')
+
+                if options_button.collidepoint(mouse_x, mouse_y):
+                    screen_transition_in(options_screen_loop, transition_type='fade')
 
         pygame.display.update() # update the display every frame
     
-screen_transition_in(menu_screen_loop)
+def options_screen_loop():
+    running = True
+    while running:
+        clock.tick(FPS)
+
+        WINDOW.fill(MENU_GRAY)
+
+        back_button_text = DEFAULT_FONT.render("Back", 1, BLACK)
+        scale_window_button_text = DEFAULT_FONT.render("Scale window size", 1, BLACK)
+
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+
+        back_button = pygame.Rect(400, 500, 150, 50)
+        scale_window_button = pygame.Rect(600, 500, 275, 50)
+
+        pygame.draw.rect(WINDOW, YELLOW, back_button)
+        pygame.draw.rect(WINDOW, ORANGE, scale_window_button)
+
+        WINDOW.blit(back_button_text, (back_button.x + 80 / 2, back_button.y + 15))
+        WINDOW.blit(scale_window_button_text, (scale_window_button.x + 80 / 2, scale_window_button.y + 15))
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+
+            if event.type == MOUSEBUTTONUP:
+                if back_button.collidepoint(mouse_x, mouse_y):
+                    screen_transition_in(menu_screen_loop, transition_type='fade')
+                    
+        pygame.display.update() # update the display every frame
+
+screen_transition_in(menu_screen_loop, transition_type='fade')
 
 pygame.quit()
 
