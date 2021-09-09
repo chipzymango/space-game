@@ -12,7 +12,14 @@ WINDOW_Y = 600
 WINDOW = pygame.display.set_mode((WINDOW_X, WINDOW_Y))
 pygame.display.set_caption("Game")
 
+game_icon = pygame.image.load('assets/visual/game/game_icon.png')
+
+# we add a surface image as parameter for program icon
+pygame.display.set_icon(game_icon)
+
+LARGE_FONT = pygame.font.Font('assets/fonts/dpcomic.ttf', 45)
 DEFAULT_FONT = pygame.font.Font('assets/fonts/dpcomic.ttf', 30) # defining font to use in game score and health
+SMALL_FONT = pygame.font.Font('assets/fonts/dpcomic.ttf', 15)
 
 # initializing color
 BLACK = (0, 0, 0)
@@ -25,6 +32,7 @@ INGAME_BG = (225, 225, 225)
 DARK_RED = (175, 0, 0)
 YELLOW = (255, 255, 0)
 ORANGE = (255, 126, 0)
+LIGHT_RED = (255, 210, 210)
 
 FPS = 60
 
@@ -257,8 +265,8 @@ class Bullet(pygame.sprite.Sprite):
         else:
             self.x += 5
         
+        # if bullet has hit the game border
         if self.x > WINDOW_X or self.x < 0:
-            print("Bullet " + str(self.unique_id) + " reached border, deleting.")
             self.kill()
 
         self.check_collisions()
@@ -522,7 +530,7 @@ class Obstacle(pygame.sprite.Sprite):
 
         WINDOW.blit(self.image, (self.x, self.y))
 
-def screen_transition_in(new_screen_loop, transition_speed=1, transition_type='horizontal', reverse=False):
+def screen_transition_in(new_screen_loop, transition_speed=1, transition_type='horizontal', reverse=False, mode=1):
     if transition_type == 'horizontal':
         # create a "transition element" which
         # will add to the transition effect
@@ -530,6 +538,7 @@ def screen_transition_in(new_screen_loop, transition_speed=1, transition_type='h
             transition_element = pygame.Rect(WINDOW_X, 0, WINDOW_X, WINDOW_Y)
         else:
             transition_element = pygame.Rect(0 - WINDOW_X, 0, WINDOW_X, WINDOW_Y)
+
         running = True
         while running:
             clock.tick(FPS)
@@ -552,16 +561,17 @@ def screen_transition_in(new_screen_loop, transition_speed=1, transition_type='h
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
+                    exit()
             
             pygame.display.update() # update the display every frame
 
     elif transition_type == 'fade':
         transition_element = pygame.Surface((1200, 600))
+        transition_element.convert()
         transition_element.fill(ORANGE)
         alpha_strength = 0
         running = True
         while running:
-
             clock.tick(FPS)
             transition_element.fill(BLACK)
             alpha_strength += 1
@@ -575,12 +585,13 @@ def screen_transition_in(new_screen_loop, transition_speed=1, transition_type='h
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
+                    exit()
             
             pygame.display.update()
 
-    screen_transition_out(new_screen_loop ,transition_element, transition_speed, transition_type, reverse=reverse)
+    screen_transition_out(new_screen_loop ,transition_element, transition_speed, transition_type, reverse, mode)
 
-def screen_transition_out(new_screen_loop, transition_element, transition_speed=1, transition_type='horizontal', reverse=False):
+def screen_transition_out(new_screen_loop, transition_element, transition_speed=1, transition_type='horizontal', reverse=False, mode=1):
     if transition_type == 'horizontal':
         running = True
         while running:
@@ -603,6 +614,7 @@ def screen_transition_out(new_screen_loop, transition_element, transition_speed=
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         pygame.quit()
+                        exit()
             else:
                 if transition_element.x >= WINDOW_X:
                     running = False
@@ -610,6 +622,7 @@ def screen_transition_out(new_screen_loop, transition_element, transition_speed=
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         pygame.quit()
+                        exit()
 
             pygame.display.update() # update the display every frame
 
@@ -638,12 +651,19 @@ def screen_transition_out(new_screen_loop, transition_element, transition_speed=
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
+                    exit()
             
             pygame.display.update()
 
-    new_screen_loop()
+    # this is to prevent unexpected keyword argument
+    if new_screen_loop == game_screen_loop:
+        print("new screen is game screen")
+        new_screen_loop(mode)
+    else:
+        print("new screen")
+        new_screen_loop()
 
-def game_screen_loop():
+def game_screen_loop(mode=1):
     # set / reset game entities (to avoid duplicates)
     rocket_group.empty()
     bullet_group.empty()
@@ -652,6 +672,9 @@ def game_screen_loop():
     obstacles_group.empty()
     total_rockets_group.empty()
     total_obstacles_group.empty()
+
+    training_menu_active = False
+    pause_menu_active = False
 
     player = Rocket(200, 400, 1, speed=2, size=3)
     enemy = Rocket(100, 100, 0, 3, 10, 2, flipped=True)
@@ -663,7 +686,6 @@ def game_screen_loop():
         if each_star % 2 == 1: # every odd number will return 1
             variant = 'background_star_animation/blue'
         each_star = BackgroundEffect(variant, rx, ry, size=1, looping=True, loop_with_reverse=True)
-
     test_tree = Obstacle(1200, 500)
 
     running = True
@@ -675,26 +697,122 @@ def game_screen_loop():
         bullet_group.update()
         effect_group.update()
         obstacles_group.update()
-
         player.move()
         enemy.move()
+
+        if training_menu_active:
+            # initialize here (code that runs only once every press)
+            black_overlay_surface = pygame.Surface((200, WINDOW_Y)).convert()
+            black_overlay_surface.fill(GRAY)
+            black_overlay_surface.set_alpha(200)
+
+
+            elements_surface = pygame.Surface((black_overlay_surface.get_width() - 10, black_overlay_surface.get_height() - 10))
+            elements_surface.fill(WHITE)
+            elements_surface.set_alpha(150)
+            pause_text = DEFAULT_FONT.render("Pause menu", 1, BLACK)
+            exit_button_text = DEFAULT_FONT.render("Exit game", 1, DARK_RED)
+            exit_button = pygame.Rect(elements_surface.get_width() / 2 - 150/2, black_overlay_surface.get_height() - 80, 150, 50)
+            pygame.draw.rect(elements_surface, LIGHT_RED, exit_button)
+            elements_surface.blit(pause_text, (elements_surface.get_width() / 2 - pause_text.get_width() / 2, exit_button.height / 2))
+            elements_surface.blit(exit_button_text, (exit_button.x + pause_text.get_width() / 2 - exit_button_text.get_width() / 2, exit_button.y + pause_text.get_height() / 2))
+
+            # This surface below is blit outside the loop
+            # because the surface does not fill itself each frame
+            # this is to prevent repeatedly drawing new opacity onto the 
+            # original window surface each frame which eventually
+            # would end up completely covering the window surface.
+            WINDOW.blit(black_overlay_surface, (0, 0))
+            WINDOW.blit(elements_surface, (5, 5))
+
+            while training_menu_active:
+                clock.tick(FPS)
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+
+
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        exit()
+
+                    if event.type == KEYDOWN:
+                        if event.key == K_p:
+                            training_menu_active = False
+
+                    if exit_button.collidepoint(mouse_x, mouse_y):
+                        exit_button_color = LIGHT_RED
+                        if event.type == MOUSEBUTTONUP:
+                            if event.button == 1:
+                                exit_button_color = WHITE
+                                screen_transition_in(menu_screen_loop)
+
+                    else:
+                        exit_button_color = GRAY
+
+
+                pygame.display.update()
+
+        # if game is paused
+        if pause_menu_active:
+            black_overlay_surface = pygame.Surface((WINDOW_X, WINDOW_Y)).convert()
+            black_overlay_surface.fill(BLACK)
+            black_overlay_surface.set_alpha(150)
+            pause_text = DEFAULT_FONT.render("Pause menu", 1, BLACK)
+
+            elements_surface = pygame.Surface((WINDOW_X/4, WINDOW_Y/4)).convert()
+            elements_surface.fill(WHITE)
+            exit_button = pygame.Rect(25,125, 100, 20)
+            
+            WINDOW.blit(black_overlay_surface, (0, 0))
+
+            while pause_menu_active:
+                clock.tick(FPS)
+                elements_surface.blit(pause_text, (elements_surface.get_width() / 2 - pause_text.get_width() / 2, 10))
+                pygame.draw.rect(elements_surface, ORANGE, exit_button)
+                WINDOW.blit(elements_surface, (WINDOW_X/2 - elements_surface.get_width() / 2, WINDOW_Y/2))
+
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        exit()
+
+                    if event.type == KEYDOWN:
+                        if event.key == K_p:
+                            pause_menu_active = False
+
+                    if event.type == MOUSEBUTTONUP:
+                        if event.button == 1:
+                            print("Clicked button!")
+                            print(exit_button.x, exit_button.y, pygame.mouse.get_pos())
+                            if exit_button.collidepoint(pygame.mouse.get_pos()):
+                               print("Clicked button!")
+                
+                pygame.display.update()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
+                exit()
 
             if event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     running = False
 
-                if event.key == pygame.K_SPACE:
-                    player.shoot()
-
-                if event.key == pygame.K_BACKSPACE:
-                    enemy.shoot()
-
                 if event.key == pygame.K_ESCAPE:
                     screen_transition_in(menu_screen_loop)
+
+                if event.key == pygame.K_p:
+                    if mode == 0:
+                        training_menu_active = True
+                        print("Training")
+                    elif mode == 1:
+                        pause_menu_active = True
+                        print("Survival")
+
+                if event.key == pygame.K_SPACE:
+                    player.shoot()
+                if event.key == pygame.K_RETURN:
+                    enemy.shoot()
 
         keys_pressed = pygame.key.get_pressed()
     
@@ -765,43 +883,69 @@ def game_screen_loop():
 
         pygame.display.update() # update the display every frame
 
-def menu_screen_loop():
+def menu_screen_loop(mode=0):
     running = True
+
+    background_surface = pygame.Surface((WINDOW_X, WINDOW_Y)).convert()
+
+    # menu background rockets
+    rocket_img1 = pygame.image.load('assets/visual/rockets/rocket_0.png').convert()
+    rocket_img1.set_colorkey(WHITE)
+    rocket_img1 = pygame.transform.scale(rocket_img1, (rocket_img1.get_width()*10, rocket_img1.get_height()*10 ))
+    rocket_img1 = pygame.transform.rotate(rocket_img1, 75)
+
+    rocket_img2 = pygame.image.load('assets/visual/rockets/rocket_3.png').convert()
+    rocket_img2.set_colorkey(WHITE)
+    rocket_img2 = pygame.transform.scale(rocket_img2, (rocket_img2.get_width()*8, rocket_img2.get_height()*8 ))
+    rocket_img2 = pygame.transform.rotate(rocket_img2, -50)
+
+    title_image = pygame.image.load('assets/visual/menu/game_logo2.png').convert()
+    start_button = pygame.Rect(400, 500, 150, 50)
+    options_button = pygame.Rect(600, 500, 150, 50)
+    start_button_text = DEFAULT_FONT.render("Start", 1, BLACK)
+    options_button_text = DEFAULT_FONT.render("Options", 1, BLACK)
+
+    
     while running:
         clock.tick(FPS)
-        
-        WINDOW.fill(MENU_GRAY)
-
         mouse_x, mouse_y = pygame.mouse.get_pos()
-        title_image = pygame.image.load('assets/visual/menu/game_logo2.png').convert()
-
-        start_button_text = DEFAULT_FONT.render("Start", 1, BLACK)
-        options_button_text = DEFAULT_FONT.render("Options", 1, BLACK)
-
-        start_button = pygame.Rect(400, 500, 150, 50)
-        options_button = pygame.Rect(600, 500, 150, 50)
+        background_surface.fill(WHITE)
+        pygame.draw.circle(background_surface, YELLOW, (120, 350), 90)
+        pygame.draw.circle(background_surface, ORANGE, (1120, 110), 80)
+        background_surface.set_alpha(100)
+        background_surface.blit(rocket_img1, (80, 300))
+        background_surface.blit(rocket_img2, (1000, 70))
+        #background_surface.blit(circle, (70, 300))
+        WINDOW.fill(MENU_GRAY)
+        WINDOW.blit(background_surface, (0, 0))
 
         pygame.draw.rect(WINDOW, YELLOW, start_button)
         pygame.draw.rect(WINDOW, YELLOW, options_button)
-
         WINDOW.blit(title_image, (250, 50) )
         WINDOW.blit(start_button_text, (start_button.x + 80 / 2, start_button.y + 15) )
         WINDOW.blit(options_button_text, (options_button.x + 80 / 2, options_button.y + 15) )
-        
+
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
+                exit()
 
             if event.type == MOUSEBUTTONUP:
                 if start_button.collidepoint(mouse_x, mouse_y):
-                    screen_transition_in(game_screen_loop, transition_type='horizontal')
+                    screen_transition_in(game_screen_loop, transition_type='horizontal', mode=1)
 
                 if options_button.collidepoint(mouse_x, mouse_y):
                     screen_transition_in(options_screen_loop, transition_type='fade')
 
+            if event.type == KEYDOWN:
+                if event.key == pygame.K_0:
+                    screen_transition_in(game_screen_loop, transition_type='horizontal', mode=0)
+
+
         pygame.display.update() # update the display every frame
     
-def options_screen_loop():
+def options_screen_loop(mode=0):
     running = True
     while running:
         clock.tick(FPS)
@@ -825,6 +969,7 @@ def options_screen_loop():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
+                exit()
 
             if event.type == MOUSEBUTTONUP:
                 if back_button.collidepoint(mouse_x, mouse_y):
@@ -835,6 +980,7 @@ def options_screen_loop():
 screen_transition_in(menu_screen_loop, transition_type='fade')
 
 pygame.quit()
+exit()
 
 if __name__ == "__main__":
     run = True
