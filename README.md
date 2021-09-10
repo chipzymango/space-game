@@ -1,3 +1,3 @@
 # space-game
  
-A little Python pygame project that I am working on during easter holidays. It may or may not be finished (probably not). I am making this game as I'm learning the basics of pygame at the same time...
+Cool spaceship / rocket game made in pygame. Probably won't be finished but a fun project to work on at times.
