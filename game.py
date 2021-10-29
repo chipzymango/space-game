@@ -1,6 +1,8 @@
 import pygame
 
-from initialize import *
+# configure things
+from config import *
+from transitions import menu_screen_loop
 
 screen_transition_in(menu_screen_loop, transition_type='fade')
 

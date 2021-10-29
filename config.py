@@ -3,20 +3,17 @@ from pygame.locals import *
 import random
 import os
 
+
 # initialize all pygame modules
 pygame.init()
 
+# configure window properties
 WINDOW_X = 1200
 WINDOW_Y = 600
-
-# initialize images
 game_icon = pygame.image.load('assets/visual/game/game_icon.png')
-
+pygame.display.set_icon(game_icon)
 WINDOW = pygame.display.set_mode((WINDOW_X, WINDOW_Y))
 pygame.display.set_caption("Game")
-
-# we add a surface image as parameter for program icon
-pygame.display.set_icon(game_icon)
 
 # initializing color
 BLACK = (0, 0, 0)
@@ -30,20 +27,21 @@ DARK_RED = (175, 0, 0)
 YELLOW = (255, 255, 0)
 ORANGE = (255, 126, 0)
 LIGHT_RED = (255, 210, 210)
+LIGHT_YELLOW = (255, 255, 127)
 
 # fixed fps
 FPS = 60
-
 clock = pygame.time.Clock()
 
 # import and initalize objects
-from classes import *
+from classes import MouseCursor
 
-# initialize groups
+# mouse
+menu_mouse_cursor = MouseCursor()
+menu_mouse_cursor.visibility = True
+
+from transitions import screen_transition_in, screen_transition_out
 from groups import *
-
-# initializing sound effects
 from sounds import *
-
-# initialize fonts
 from fonts import *
+
